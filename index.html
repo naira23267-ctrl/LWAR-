@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LWAR Arena V1.1</title>
+    <title>LWAR Arena V1.2 - Torneio Oficial</title>
     <link rel="manifest" href="manifest.json">
     <style>
         :root {
@@ -16,6 +16,7 @@
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --success: #22c55e;
+            --warning: #eab308;
         }
 
         * {
@@ -113,7 +114,7 @@
         }
 
         /* Ranking & Listas */
-        .ranking-list, .waiting-list {
+        .ranking-list, .waiting-list, .tournament-bracket {
             list-style: none;
             display: flex;
             flex-direction: column;
@@ -138,6 +139,11 @@
         .ranking-item.waiting {
             opacity: 0.6;
             border-left-color: var(--text-muted);
+        }
+
+        .ranking-item.champion-badge {
+            border-left-color: var(--warning);
+            background: rgba(234, 179, 8, 0.1);
         }
 
         /* Arena Central */
@@ -165,15 +171,36 @@
             overflow-y: auto;
         }
 
+        /* Arena de Batalha do Torneio (1v1) */
+        .tournament-arena {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 2rem;
+            gap: 1.5rem;
+        }
+
+        .vs-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            width: 100%;
+            max-width: 700px;
+        }
+
         .fighter-card {
             background: rgba(15, 23, 42, 0.85);
             border: 1px solid var(--panel-border);
             border-radius: 8px;
-            padding: 0.75rem;
-            width: 180px;
+            padding: 1rem;
+            width: 240px;
             display: flex;
             flex-direction: column;
-            gap: 0.4rem;
+            gap: 0.6rem;
             position: relative;
             transition: all 0.3s ease;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
@@ -192,12 +219,12 @@
         .fighter-header {
             display: flex;
             justify-content: space-between;
-            font-size: 0.85rem;
+            font-size: 0.95rem;
             font-weight: bold;
         }
 
         .fighter-class {
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             color: var(--text-muted);
             text-transform: uppercase;
         }
@@ -205,7 +232,7 @@
         .hp-bar-container {
             background: #090d16;
             border-radius: 4px;
-            height: 8px;
+            height: 10px;
             width: 100%;
             overflow: hidden;
             border: 1px solid rgba(255,255,255,0.1);
@@ -221,8 +248,31 @@
         .fighter-stats {
             display: flex;
             justify-content: space-between;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             color: var(--text-muted);
+        }
+
+        .vs-badge {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
+        }
+
+        .transition-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .transition-screen h2 {
+            font-size: 2rem;
+            color: var(--warning);
+            text-shadow: 0 0 15px rgba(234, 179, 8, 0.4);
         }
 
         /* Simulador e Controles */
@@ -272,6 +322,11 @@
             color: white;
         }
 
+        button.warning {
+            background: var(--warning);
+            color: #0f172a;
+        }
+
         .gift-buttons {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -286,7 +341,6 @@
             padding: 0.4rem;
         }
 
-        /* Animações de entrada */
         @keyframes slideIn {
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -300,37 +354,39 @@
 <body>
 
     <header>
-        <div class="logo">⚔️ LWAR ARENA V1.1</div>
+        <div class="logo">⚔️ LWAR ARENA V1.2</div>
         <div class="battle-status">
-            <div>Modo Batalha: <span id="battleStatusText" style="color: var(--success);">Ativo</span></div>
-            <div class="timer-box" id="battleTimer">01:00</div>
+            <div>Fase: <span id="phaseStatusText" style="color: var(--primary);">Disputa Top 20</span></div>
+            <div class="timer-box" id="mainTimer">01:00</div>
         </div>
         <div>
-            <button id="toggleBattleBtn" class="danger">Pausar Batalha</button>
+            <button id="skipRankingBtn" class="warning">Forçar Início Torneio</button>
         </div>
     </header>
 
     <main>
-        <!-- Painel Esquerdo: Ranking Top 20 & Espera -->
+        <!-- Painel Esquerdo: Ranking Top 20 ou Status do Torneio -->
         <div class="panel">
-            <div class="panel-header">
+            <div class="panel-header" id="leftPanelHeader">
                 <span>🏆 TOP 20 NA ARENA</span>
                 <span id="topCount" style="font-size: 0.8rem; color: var(--primary);">0/20</span>
             </div>
-            <div class="panel-body">
+            <div class="panel-body" id="leftPanelBody">
                 <ul class="ranking-list" id="top20List">
                     <!-- Preenchido via JS -->
                 </ul>
-                <h4 style="margin: 1rem 0 0.5rem 0; font-size: 0.85rem; color: var(--text-muted);">Aguardando na Fila (21+)</h4>
-                <ul class="waiting-list" id="waitingList">
-                    <!-- Preenchido via JS -->
-                </ul>
+                <div id="waitingSection">
+                    <h4 style="margin: 1rem 0 0.5rem 0; font-size: 0.85rem; color: var(--text-muted);">Aguardando na Fila (21+)</h4>
+                    <ul class="waiting-list" id="waitingList">
+                        <!-- Preenchido via JS -->
+                    </ul>
+                </div>
             </div>
         </div>
 
-        <!-- Painel Central: Arena Visual -->
-        <div class="arena-container">
-            <div style="position: absolute; top: 10px; left: 15px; font-size: 0.8rem; color: var(--text-muted); z-index: 10;">
+        <!-- Painel Central: Arena Visual / Torneio -->
+        <div class="arena-container" id="arenaContainer">
+            <div style="position: absolute; top: 10px; left: 15px; font-size: 0.8rem; color: var(--text-muted); z-index: 10;" id="arenaSubheader">
                 Visualização da Arena (Top 20 Ativos)
             </div>
             <div class="arena-grid" id="arenaGrid">
@@ -338,13 +394,13 @@
             </div>
         </div>
 
-        <!-- Painel Direito: Simulador e Gerenciamento -->
+        <!-- Painel Direito: Simulador de Eventos / Suporte ao Torneio -->
         <div class="panel">
             <div class="panel-header">
-                <span>🧪 Simulador de Eventos (TikTok)</span>
+                <span id="simPanelTitle">🧪 Simulador de Eventos</span>
             </div>
-            <div class="panel-body">
-                <div class="sim-controls">
+            <div class="panel-body" id="simPanelBody">
+                <div class="sim-controls" id="rankingSimControls">
                     <div class="form-group">
                         <label>Adicionar Jogador de Teste</label>
                         <input type="text" id="newUsername" placeholder="@username">
@@ -364,19 +420,19 @@
                     <hr style="border-color: var(--panel-border); margin: 0.5rem 0;">
 
                     <div class="form-group">
-                        <label>Simular Presente para Jogador</label>
+                        <label>Simular Presente para Jogador (Ranking)</label>
                         <select id="targetPlayerSelect">
                             <option value="">Selecione o jogador...</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Escolher Presente / Moedas</label>
+                        <label>Escolher Presente / Pontos</label>
                         <div class="gift-buttons">
-                            <button class="gift-btn" onclick="simGift(10)">+10 pts</button>
-                            <button class="gift-btn" onclick="simGift(50)">+50 pts</button>
-                            <button class="gift-btn" onclick="simGift(100)">+100 pts</button>
-                            <button class="gift-btn" onclick="simGift(500)">+500 pts</button>
-                            <button class="gift-btn" onclick="simGift(1000)">+1000 pts</button>
+                            <button class="gift-btn" onclick="simGiftRanking(10)">+10 pts</button>
+                            <button class="gift-btn" onclick="simGiftRanking(50)">+50 pts</button>
+                            <button class="gift-btn" onclick="simGiftRanking(100)">+100 pts</button>
+                            <button class="gift-btn" onclick="simGiftRanking(500)">+500 pts</button>
+                            <button class="gift-btn" onclick="simGiftRanking(1000)">+1000 pts</button>
                         </div>
                     </div>
 
@@ -385,7 +441,14 @@
                     <div class="form-group">
                         <label>Ações Rápidas</label>
                         <button onclick="Game.initDemoPlayers(25)" style="background: #334155; color: white;">Popular com 25 Jogadores</button>
-                        <button onclick="Game.resetBattleTimer()" style="background: #334155; color: white; margin-top: 0.4rem;">Reiniciar Rodada (60s)</button>
+                    </div>
+                </div>
+
+                <!-- Controles de Suporte durante o Torneio -->
+                <div class="sim-controls" id="tournamentSimControls" style="display: none;">
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Apoie os lutadores ativos na batalha atual:</p>
+                    <div id="tournamentGiftButtonsContainer">
+                        <!-- Preenchido dinamicamente para Fighter A e Fighter B -->
                     </div>
                 </div>
             </div>
@@ -394,12 +457,13 @@
 
     <script>
         /**
-         * LWAR ARENA - ARQUITETURA V1.1
+         * LWAR ARENA - ARQUITETURA V1.2 (TORNEIO OFICIAL)
          */
         const DEBUG = true;
 
         const CONFIG = {
             MAX_ARENA_PLAYERS: 20,
+            RANKING_PHASE_DURATION: 60, // 60 segundos para fase de ranking
             BATTLE_DURATION: 60,
             FRENZY_TRIGGER_TIME: 10,
             FRENZY_DAMAGE_MULT: 2.0,
@@ -411,12 +475,23 @@
             players: [],
             arenaPlayers: [],
             waitingPlayers: [],
-            battle: {
-                active: true,
-                timer: 60,
-                frenzy: false,
-                interval: null
-            }
+            phase: 'RANKING', // 'RANKING' | 'TRANSITION' | 'TOURNAMENT' | 'CHAMPION'
+            rankingTimer: CONFIG.RANKING_PHASE_DURATION,
+            rankingInterval: null
+        };
+
+        // Estado do Torneio V1.2
+        const tournamentState = {
+            active: false,
+            players: [],          // Cópia congelada do Top 20 ordenado (0 = 1º, 19 = 20º)
+            currentIndex: 19,     // Aponta para o desafiante atual (começa no 20º, índice 19)
+            fighterA: null,       // Lutador A (ex: 20º)
+            fighterB: null,       // Lutador B (ex: 19º)
+            currentWinner: null,  // Vencedor da última partida
+            champion: null,       // Grande campeão
+            battleTimer: CONFIG.BATTLE_DURATION,
+            frenzy: false,
+            battleInterval: null
         };
 
         // ClassManager: Definição de Classes e Atributos Base
@@ -447,7 +522,7 @@
 
         // GiftService: Camada preparada para TikTok LIVE ou Simulação
         const GiftService = {
-            mode: "SIMULATION", // ou "REAL" futuramente
+            mode: "SIMULATION",
             onGiftReceived(callback) {
                 this.listener = callback;
             },
@@ -459,9 +534,15 @@
             }
         };
 
-        // PlayerManager & RankingManager
+        // RankingManager
         const RankingManager = {
             addOrUpdatePlayer(username, charClass, pointsDelta) {
+                // Durante o torneio, o ranking do Top 20 inicial é estritamente congelado.
+                if (gameState.phase !== 'RANKING') {
+                    if (DEBUG) console.log(`[Ranking] Tentativa de pontuação para @${username} ignorada: Fase de Ranking encerrada.`);
+                    return;
+                }
+
                 let player = gameState.players.find(p => p.username === username);
                 if (!player) {
                     const baseStats = ClassManager.getStats(charClass);
@@ -479,7 +560,6 @@
                         lastPointTimestamp: Date.now()
                     };
                     gameState.players.push(player);
-                    if (DEBUG) console.log(`[Player] Novo jogador registrado: ${player.username} (${charClass})`);
                 }
 
                 if (pointsDelta) {
@@ -492,137 +572,238 @@
             },
 
             recalculateRanking() {
-                // Ordenação determinística: Maior pontuação primeiro; desempate por timestamp mais antigo
+                if (gameState.phase !== 'RANKING') return;
+
                 gameState.players.sort((a, b) => {
                     if (b.points !== a.points) return b.points - a.points;
                     return a.lastPointTimestamp - b.lastPointTimestamp;
                 });
 
-                // Atualizar posições
                 gameState.players.forEach((p, idx) => {
                     p.position = idx + 1;
                 });
 
-                // Separar Top 20 e Aguardando
                 gameState.arenaPlayers = gameState.players.slice(0, CONFIG.MAX_ARENA_PLAYERS);
                 gameState.waitingPlayers = gameState.players.slice(CONFIG.MAX_ARENA_PLAYERS);
 
-                // Atualizar status
                 gameState.arenaPlayers.forEach(p => {
-                    if (p.status === 'aguardando' || p.status === 'eliminado') {
-                        p.status = 'ativo';
-                        if (p.hp <= 0) p.hp = p.maxHp; // Revive se entrar no Top 20 com HP zerado
-                        if (DEBUG) console.log(`[Ranking] ${p.username} entrou no Top 20 (Posição ${p.position})!`);
-                    }
+                    p.status = 'ativo';
+                    if (p.hp <= 0) p.hp = p.maxHp;
                 });
 
                 gameState.waitingPlayers.forEach(p => {
-                    if (p.status === 'ativo') {
-                        p.status = 'aguardando';
-                        if (DEBUG) console.log(`[Ranking] ${p.username} caiu para fora do Top 20 (Posição ${p.position}). Deixou a arena.`);
-                    }
+                    p.status = 'aguardando';
                 });
 
-                UI.renderAll();
+                UI.renderRankingPhase();
             }
         };
 
-        // BattleManager: Combate Automático, Timer e Frenesi
+        // TournamentManager: Gerenciamento do fluxo de torneio, rodadas e confrontos
+        const TournamentManager = {
+            initTournament() {
+                if (gameState.phase === 'TOURNAMENT' || gameState.phase === 'CHAMPION') return;
+
+                // 1. Congelar Top 20
+                gameState.phase = 'TRANSITION';
+                if (gameState.rankingInterval) clearInterval(gameState.rankingInterval);
+
+                // Garantir ordenação correta do Top 20 (1º ao 20º)
+                gameState.arenaPlayers.sort((a, b) => a.position - b.position);
+                tournamentState.players = [...gameState.arenaPlayers];
+
+                if (tournamentState.players.length < 2) {
+                    alert("Jogadores insuficientes para iniciar o torneio! Adicione pelo menos 2 jogadores.");
+                    gameState.phase = 'RANKING';
+                    Game.startRankingTimer();
+                    return;
+                }
+
+                if (DEBUG) console.log("[Tournament] Top 20 congelado. Iniciando transição para o torneio.");
+
+                UI.renderTransitionScreen(() => {
+                    gameState.phase = 'TOURNAMENT';
+                    tournamentState.active = true;
+                    // Começar no final da lista: 20º (índice 19) vs 19º (índice 18)
+                    tournamentState.currentIndex = tournamentState.players.length - 1; 
+                    this.startFirstMatch();
+                });
+            },
+
+            startFirstMatch() {
+                const len = tournamentState.players.length;
+                // 20º vs 19º (índices len - 1 e len - 2)
+                tournamentState.fighterA = tournamentState.players[len - 1];
+                tournamentState.fighterB = tournamentState.players[len - 2];
+                tournamentState.currentIndex = len - 3; // Próximo desafiante será o 18º (índice len - 3)
+
+                this.setupMatch();
+            },
+
+            startNextMatch(winner) {
+                tournamentState.currentWinner = winner;
+
+                if (tournamentState.currentIndex < 0) {
+                    // O vencedor atual enfrentará o 1º colocado (índice 0) na GRANDE FINAL!
+                    const firstPlace = tournamentState.players[0];
+                    if (winner.username === firstPlace.username) {
+                        // Se por acaso o vencedor for o próprio 1º (caso raro em simulações), já é campeão
+                        this.declareChampion(winner);
+                        return;
+                    }
+
+                    tournamentState.fighterA = winner;
+                    tournamentState.fighterB = firstPlace;
+                    tournamentState.currentIndex = -99; // Marcador de que esta é a final contra o 1º
+                    this.setupMatch();
+                    return;
+                }
+
+                if (tournamentState.currentIndex === -99) {
+                    // A final contra o 1º acabou! O vencedor é o CAMPEÃO DA LWAR!
+                    this.declareChampion(winner);
+                    return;
+                }
+
+                // Confronto normal: Vencedor anterior vs Próximo jogador do ranking (subindo em direção ao topo)
+                tournamentState.fighterA = winner;
+                tournamentState.fighterB = tournamentState.players[tournamentState.currentIndex];
+                tournamentState.currentIndex--; // Avança para o próximo jogador superior na próxima rodada
+
+                this.setupMatch();
+            },
+
+            setupMatch() {
+                // Restaurar HP total para o combate
+                tournamentState.fighterA.hp = tournamentState.fighterA.maxHp;
+                tournamentState.fighterB.hp = tournamentState.fighterB.maxHp;
+                tournamentState.fighterA.status = 'ativo';
+                tournamentState.fighterB.status = 'ativo';
+
+                tournamentState.battleTimer = CONFIG.BATTLE_DURATION;
+                tournamentState.frenzy = false;
+
+                BattleManager.startBattleTimer();
+                UI.renderTournamentBattle();
+            },
+
+            declareChampion(champion) {
+                gameState.phase = 'CHAMPION';
+                tournamentState.active = false;
+                if (tournamentState.battleInterval) clearInterval(tournamentState.battleInterval);
+                tournamentState.champion = champion;
+
+                if (DEBUG) console.log(`[Tournament] 🏆 CAMPEÃO DA LWAR: ${champion.username}`);
+                UI.renderChampionScreen(champion);
+            }
+        };
+
+        // BattleManager: Batalha individual de 60s com Frenesi
         const BattleManager = {
-            startTimer() {
-                if (gameState.battle.interval) clearInterval(gameState.battle.interval);
-                
-                gameState.battle.interval = setInterval(() => {
-                    if (!gameState.battle.active) return;
+            startBattleTimer() {
+                if (tournamentState.battleInterval) clearInterval(tournamentState.battleInterval);
 
-                    gameState.battle.timer--;
-                    
-                    // Checar Frenesi (últimos 10 segundos)
-                    if (gameState.battle.timer <= CONFIG.FRENZY_TRIGGER_TIME && !gameState.battle.frenzy) {
-                        gameState.battle.frenzy = true;
-                        if (DEBUG) console.log("[Battle] FRENESI ATIVADO!");
+                tournamentState.battleInterval = setInterval(() => {
+                    if (gameState.phase !== 'TOURNAMENT') return;
+
+                    tournamentState.battleTimer--;
+
+                    if (tournamentState.battleTimer <= CONFIG.FRENZY_TRIGGER_TIME && !tournamentState.frenzy) {
+                        tournamentState.frenzy = true;
+                        if (DEBUG) console.log("[Battle] FRENESI ATIVADO NO TORNEIO!");
                     }
 
-                    if (gameState.battle.timer <= 0) {
-                        this.endRound();
+                    if (tournamentState.battleTimer <= 0) {
+                        this.resolveBattleByTimeout();
                     }
 
-                    UI.updateTimerDisplay();
+                    UI.updateTournamentTimer();
+                    this.tickCombat();
                 }, 1000);
             },
 
-            tickCombats() {
-                if (!gameState.battle.active || gameState.arenaPlayers.length < 2) return;
+            tickCombat() {
+                if (!tournamentState.fighterA || !tournamentState.fighterB) return;
+                if (tournamentState.fighterA.hp <= 0 || tournamentState.fighterB.hp <= 0) return;
 
-                // Selecionar dois combatentes aleatórios ativos na arena
-                const activeFighters = gameState.arenaPlayers.filter(p => p.hp > 0);
-                if (activeFighters.length < 2) return;
+                // Combate automático entre Fighter A e Fighter B
+                const attacker = Math.random() < 0.5 ? tournamentState.fighterA : tournamentState.fighterB;
+                const defender = attacker === tournamentState.fighterA ? tournamentState.fighterB : tournamentState.fighterA;
 
-                const idx1 = Math.floor(Math.random() * activeFighters.length);
-                let idx2 = Math.floor(Math.random() * activeFighters.length);
-                while (idx2 === idx1 && activeFighters.length > 1) {
-                    idx2 = Math.floor(Math.random() * activeFighters.length);
-                }
+                const frenzyMult = tournamentState.frenzy ? CONFIG.FRENZY_DAMAGE_MULT : 1.0;
+                const rawDamage = Math.max(8, Math.floor((attacker.strength * 1.3 - defender.defense * 0.4) * frenzyMult));
 
-                const attacker = activeFighters[idx1];
-                const defender = activeFighters[idx2];
-
-                // Calcular Dano com multiplicador de Frenesi se aplicável
-                const frenzyMult = gameState.battle.frenzy ? CONFIG.FRENZY_DAMAGE_MULT : 1.0;
-                const rawDamage = Math.max(5, Math.floor((attacker.strength * 1.2 - defender.defense * 0.5) * frenzyMult));
-                
                 defender.hp = Math.max(0, defender.hp - rawDamage);
 
-                if (DEBUG) console.log(`[Battle] ${attacker.username} atacou ${defender.username} causando ${rawDamage} de dano. HP restante: ${defender.hp}`);
+                if (DEBUG) console.log(`[Battle] ${attacker.username} atingiu ${defender.username} por ${rawDamage} dmg. HP Restante: ${defender.hp}`);
 
                 UI.flashFighter(attacker.id);
+                UI.renderTournamentBattle();
 
-                if (defender.hp === 0) {
-                    defender.status = 'eliminado';
-                    if (DEBUG) console.log(`[Battle] ${defender.username} foi eliminado!`);
+                if (defender.hp <= 0) {
+                    this.endBattle(attacker, defender);
                 }
-
-                UI.renderArena();
             },
 
-            endRound() {
-                if (DEBUG) console.log("[Battle] Rodada finalizada pelo timer!");
-                // Determinar vencedor por HP ou pontos
-                const fighters = gameState.arenaPlayers.filter(p => p.status === 'ativo');
-                if (fighters.length > 0) {
-                    fighters.sort((a, b) => b.hp - a.hp || b.points - a.points);
-                    if (DEBUG) console.log(`[Battle] Vencedor da rodada: ${fighters[0].username} com ${fighters[0].hp} HP!`);
+            resolveBattleByTimeout() {
+                if (tournamentState.battleInterval) clearInterval(tournamentState.battleInterval);
+
+                const fA = tournamentState.fighterA;
+                const fB = tournamentState.fighterB;
+
+                let winner, loser;
+                if (fA.hp > fB.hp) {
+                    winner = fA;
+                    loser = fB;
+                } else if (fB.hp > fA.hp) {
+                    winner = fB;
+                    loser = fA;
+                } else {
+                    // Desempate determinístico por maior força ou pontos iniciais
+                    winner = fA.strength >= fB.strength ? fA : fB;
+                    loser = winner === fA ? fB : fA;
                 }
-                this.resetRound();
+
+                if (DEBUG) console.log(`[Battle] Fim do tempo! Vencedor por HP: ${winner.username}`);
+                this.endBattle(winner, loser);
             },
 
-            resetRound() {
-                gameState.battle.timer = CONFIG.BATTLE_DURATION;
-                gameState.battle.frenzy = false;
-                gameState.arenaPlayers.forEach(p => {
-                    p.hp = p.maxHp;
-                    p.status = 'ativo';
+            endBattle(winner, loser) {
+                if (tournamentState.battleInterval) clearInterval(tournamentState.battleInterval);
+                loser.status = 'eliminado';
+                winner.status = 'ativo';
+
+                if (DEBUG) console.log(`[Battle] Vencedor do confronto: ${winner.username}. Perdedor eliminado: ${loser.username}`);
+
+                UI.renderMatchResult(winner, loser, () => {
+                    TournamentManager.startNextMatch(winner);
                 });
-                UI.renderAll();
             }
         };
 
-        // UI Manager: Renderização e Manipulação do DOM
+        // UI Manager & Renderização
         const UI = {
             renderAll() {
-                this.renderRanking();
-                this.renderArena();
-                this.populateTargetSelect();
+                if (gameState.phase === 'RANKING') {
+                    this.renderRankingPhase();
+                }
             },
 
-            renderRanking() {
+            renderRankingPhase() {
+                document.getElementById('phaseStatusText').innerText = "Disputa Top 20";
+                document.getElementById('skipRankingBtn').style.display = "block";
+                document.getElementById('rankingSimControls').style.display = "flex";
+                document.getElementById('tournamentSimControls').style.display = "none";
+                document.getElementById('simPanelTitle').innerText = "🧪 Simulador de Eventos (TikTok)";
+                document.getElementById('leftPanelHeader').innerHTML = '<span>🏆 TOP 20 NA ARENA</span><span id="topCount" style="font-size: 0.8rem; color: var(--primary);">' + gameState.arenaPlayers.length + '/20</span>';
+                document.getElementById('waitingSection').style.display = "block";
+                document.getElementById('arenaSubheader').innerText = "Visualização da Arena (Top 20 Ativos)";
+
                 const topList = document.getElementById('top20List');
                 const waitingList = document.getElementById('waitingList');
-                const topCount = document.getElementById('topCount');
 
                 topList.innerHTML = '';
                 waitingList.innerHTML = '';
-                topCount.innerText = `${gameState.arenaPlayers.length}/20`;
 
                 gameState.arenaPlayers.forEach(p => {
                     const li = document.createElement('li');
@@ -637,19 +818,14 @@
                     li.innerHTML = `<span>#${p.position} ${p.username} <small>(${p.rank})</small></span> <strong>${p.points} pts</strong>`;
                     waitingList.appendChild(li);
                 });
-            },
 
-            renderArena() {
+                // Renderizar grid da arena
                 const grid = document.getElementById('arenaGrid');
                 grid.innerHTML = '';
-
                 gameState.arenaPlayers.forEach(p => {
                     const card = document.createElement('div');
-                    card.className = `fighter-card ${p.hp <= 0 ? 'eliminated' : ''}`;
-                    card.id = `fighter_${p.id}`;
-
+                    card.className = `fighter-card`;
                     const hpPercent = Math.max(0, (p.hp / p.maxHp) * 100);
-
                     card.innerHTML = `
                         <div class="fighter-header">
                             <span>#${p.position} ${p.username}</span>
@@ -666,10 +842,177 @@
                     `;
                     grid.appendChild(card);
                 });
+
+                this.populateTargetSelect();
+            },
+
+            renderTransitionScreen(callback) {
+                document.getElementById('phaseStatusText').innerText = "Torneio Iniciando";
+                document.getElementById('skipRankingBtn').style.display = "none";
+                const container = document.getElementById('arenaContainer');
+                container.innerHTML = `
+                    <div class="transition-screen">
+                        <h2>🔥 TOP 20 DEFINIDO! 🔥</h2>
+                        <p style="font-size: 1.2rem; color: var(--text-main);">O RANKING ESTÁ CONGELADO.</p>
+                        <p style="font-size: 1.5rem; font-weight: bold; color: var(--primary);">O TORNEIO VAI COMEÇAR! ⚔️</p>
+                    </div>
+                `;
+                setTimeout(callback, 2500);
+            },
+
+            renderTournamentBattle() {
+                document.getElementById('phaseStatusText').innerText = tournamentState.currentIndex === -99 ? "⚔️ GRANDE FINAL (VS 1º)" : "⚔️ TORNEIO LWAR";
+                document.getElementById('skipRankingBtn').style.display = "none";
+                document.getElementById('rankingSimControls').style.display = "none";
+                document.getElementById('tournamentSimControls').style.display = "flex";
+                document.getElementById('simPanelTitle').innerText = "🎁 Apoio na Batalha (Presentes)";
+
+                // Atualizar painel esquerdo com bracket/jogadores do torneio
+                document.getElementById('leftPanelHeader').innerHTML = '<span>🛡️ TOP 20 (CONGELADO)</span>';
+                document.getElementById('waitingSection').style.display = "none";
+                const topList = document.getElementById('top20List');
+                topList.innerHTML = '';
+                tournamentState.players.forEach(p => {
+                    const li = document.createElement('li');
+                    const isFighter = (tournamentState.fighterA && p.username === tournamentState.fighterA.username) || (tournamentState.fighterB && p.username === tournamentState.fighterB.username);
+                    const isEliminated = p.status === 'eliminado';
+                    li.className = `ranking-item ${isFighter ? 'top-tier' : ''} ${isEliminated ? 'waiting' : ''}`;
+                    li.innerHTML = `<span>#${p.position} ${p.username} ${isFighter ? '⚔️' : ''}</span> <strong>${isEliminated ? 'ELIMINADO' : p.rank}</strong>`;
+                    topList.appendChild(li);
+                });
+
+                // Renderizar Arena 1v1
+                document.getElementById('arenaSubheader').innerText = tournamentState.currentIndex === -99 ? "GRANDE FINAL: VENCEDOR VS 1º LUGAR" : "CONFRONTO DO TORNEIO";
+                const container = document.getElementById('arenaContainer');
+
+                const fA = tournamentState.fighterA;
+                const fB = tournamentState.fighterB;
+                const hpAPercent = Math.max(0, (fA.hp / fA.maxHp) * 100);
+                const hpBPercent = Math.max(0, (fB.hp / fB.maxHp) * 100);
+
+                container.innerHTML = `
+                    <div style="position: absolute; top: 10px; left: 15px; font-size: 0.8rem; color: var(--text-muted); z-index: 10;">
+                        ${tournamentState.currentIndex === -99 ? "GRANDE FINAL" : "Confronto de Eliminatórias"}
+                    </div>
+                    <div class="tournament-arena">
+                        <div class="vs-container">
+                            <!-- Fighter A -->
+                            <div class="fighter-card" id="fighter_${fA.id}">
+                                <div class="fighter-header">
+                                    <span>#${fA.position} ${fA.username}</span>
+                                    <span style="color: var(--primary);">${fA.points}p</span>
+                                </div>
+                                <div class="fighter-class">${fA.charClass} • ${fA.rank}</div>
+                                <div class="hp-bar-container">
+                                    <div class="hp-bar-fill" style="width: ${hpAPercent}%;"></div>
+                                </div>
+                                <div class="fighter-stats">
+                                    <span>HP: ${fA.hp}/${fA.maxHp}</span>
+                                    <span>ATK: ${fA.strength}</span>
+                                </div>
+                            </div>
+
+                            <div class="vs-badge">VS</div>
+
+                            <!-- Fighter B -->
+                            <div class="fighter-card" id="fighter_${fB.id}">
+                                <div class="fighter-header">
+                                    <span>#${fB.position} ${fB.username}</span>
+                                    <span style="color: var(--primary);">${fB.points}p</span>
+                                </div>
+                                <div class="fighter-class">${fB.charClass} • ${fB.rank}</div>
+                                <div class="hp-bar-container">
+                                    <div class="hp-bar-fill" style="width: ${hpBPercent}%;"></div>
+                                </div>
+                                <div class="fighter-stats">
+                                    <span>HP: ${fB.hp}/${fB.maxHp}</span>
+                                    <span>ATK: ${fB.strength}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Renderizar botões de presente para os lutadores atuais
+                const giftButtonsContainer = document.getElementById('tournamentGiftButtonsContainer');
+                giftButtonsContainer.innerHTML = `
+                    <div style="margin-bottom: 0.75rem;">
+                        <strong style="color: var(--primary); font-size: 0.85rem;">🎁 Apoiar ${fA.username}</strong>
+                        <div class="gift-buttons">
+                            <button class="gift-btn" onclick="simGiftTournament('${fA.username}', 10)">+10</button>
+                            <button class="gift-btn" onclick="simGiftTournament('${fA.username}', 50)">+50</button>
+                            <button class="gift-btn" onclick="simGiftTournament('${fA.username}', 100)">+100</button>
+                        </div>
+                    </div>
+                    <div>
+                        <strong style="color: var(--accent); font-size: 0.85rem;">🎁 Apoiar ${fB.username}</strong>
+                        <div class="gift-buttons">
+                            <button class="gift-btn" onclick="simGiftTournament('${fB.username}', 10)">+10</button>
+                            <button class="gift-btn" onclick="simGiftTournament('${fB.username}', 50)">+50</button>
+                            <button class="gift-btn" onclick="simGiftTournament('${fB.username}', 100)">+100</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <button onclick="simGiftTournament('${fA.username}', 500)" style="background: #334155; color: white; width: 100%; font-size: 0.75rem;">Auto-Apoio (${fA.username} +500)</button>
+                    </div>
+                `;
+
+                this.updateTournamentTimer();
+            },
+
+            renderMatchResult(winner, loser, callback) {
+                const container = document.getElementById('arenaContainer');
+                container.innerHTML = `
+                    <div class="transition-screen">
+                        <h2 style="color: var(--success);">⚔️ FIM DO CONFRONTO! ⚔️</h2>
+                        <p style="font-size: 1.3rem;">Vencedor: <strong style="color: var(--primary);">${winner.username}</strong></p>
+                        <p style="font-size: 1rem; color: var(--text-muted);">${loser.username} foi eliminado do torneio.</p>
+                    </div>
+                `;
+                setTimeout(callback, 2500);
+            },
+
+            renderChampionScreen(champion) {
+                document.getElementById('phaseStatusText').innerText = "🏆 CAMPEÃO DEFINIDO";
+                const container = document.getElementById('arenaContainer');
+                container.innerHTML = `
+                    <div class="transition-screen">
+                        <h2 style="font-size: 2.5rem; color: var(--warning);">🏆 CAMPEÃO DA LWAR 🏆</h2>
+                        <p style="font-size: 1.8rem; font-weight: bold; color: var(--primary);">${champion.username}</p>
+                        <p style="font-size: 1.1rem; color: var(--text-muted);">Classe: ${champion.charClass} | Rank Original: ${champion.rank}</p>
+                        <button onclick="location.reload()" style="margin-top: 1.5rem; background: var(--warning); color: #0f172a; padding: 0.75rem 1.5rem; font-size: 1rem;">Reiniciar Nova Temporada</button>
+                    </div>
+                `;
+
+                // Atualizar painel esquerdo com o campeão em destaque
+                const topList = document.getElementById('top20List');
+                topList.innerHTML = `<li class="ranking-item champion-badge"><span>🏆 CAMPEÃO: ${champion.username}</span> <strong>TOP 1</strong></li>` + topList.innerHTML;
+            },
+
+            updateTournamentTimer() {
+                const timerBox = document.getElementById('mainTimer');
+                const minutes = String(Math.floor(tournamentState.battleTimer / 60)).padStart(2, '0');
+                const seconds = String(tournamentState.battleTimer % 60).padStart(2, '0');
+                timerBox.innerText = `${minutes}:${seconds}`;
+
+                if (tournamentState.frenzy) {
+                    timerBox.classList.add('frenzy');
+                } else {
+                    timerBox.classList.remove('frenzy');
+                }
+            },
+
+            updateRankingTimerDisplay() {
+                const timerBox = document.getElementById('mainTimer');
+                const minutes = String(Math.floor(gameState.rankingTimer / 60)).padStart(2, '0');
+                const seconds = String(gameState.rankingTimer % 60).padStart(2, '0');
+                timerBox.innerText = `${minutes}:${seconds}`;
+                timerBox.classList.remove('frenzy');
             },
 
             populateTargetSelect() {
                 const select = document.getElementById('targetPlayerSelect');
+                if (!select) return;
                 const currentVal = select.value;
                 select.innerHTML = '<option value="">Selecione o jogador...</option>';
                 
@@ -682,19 +1025,6 @@
                 select.value = currentVal;
             },
 
-            updateTimerDisplay() {
-                const timerBox = document.getElementById('battleTimer');
-                const minutes = String(Math.floor(gameState.battle.timer / 60)).padStart(2, '0');
-                const seconds = String(gameState.battle.timer % 60).padStart(2, '0');
-                timerBox.innerText = `${minutes}:${seconds}`;
-
-                if (gameState.battle.frenzy) {
-                    timerBox.classList.add('frenzy');
-                } else {
-                    timerBox.classList.remove('frenzy');
-                }
-            },
-
             flashFighter(id) {
                 const card = document.getElementById(`fighter_${id}`);
                 if (card) {
@@ -704,7 +1034,7 @@
             }
         };
 
-        // Funções Globais e Inicialização
+        // Game Controller & Timer de Ranking
         const Game = {
             initDemoPlayers(count = 25) {
                 const classes = Object.keys(ClassManager.classes);
@@ -713,47 +1043,50 @@
                 for (let i = 0; i < count; i++) {
                     const name = sampleNames[i % sampleNames.length] + (i >= sampleNames.length ? i : '');
                     const cClass = classes[Math.floor(Math.random() * classes.length)];
-                    const initialPoints = Math.floor(Math.random() * 800) + 50;
+                    const initialPoints = Math.floor(Math.random() * 900) + 100;
                     RankingManager.addOrUpdatePlayer(name, cClass, initialPoints);
                 }
             },
 
-            resetBattleTimer() {
-                gameState.battle.timer = CONFIG.BATTLE_DURATION;
-                gameState.battle.frenzy = false;
-                UI.updateTimerDisplay();
-                if (DEBUG) console.log("[Battle] Timer reiniciado manualmente.");
+            startRankingTimer() {
+                if (gameState.rankingInterval) clearInterval(gameState.rankingInterval);
+
+                gameState.rankingInterval = setInterval(() => {
+                    if (gameState.phase !== 'RANKING') return;
+
+                    gameState.rankingTimer--;
+                    UI.updateRankingTimerDisplay();
+
+                    if (gameState.rankingTimer <= 0) {
+                        clearInterval(gameState.rankingInterval);
+                        TournamentManager.initTournament();
+                    }
+                }, 1000);
             }
         };
 
-        // Configuração de Event Listeners
+        // Event Listeners e Controles da Interface
         document.getElementById('addPlayerBtn').addEventListener('click', () => {
+            if (gameState.phase !== 'RANKING') {
+                alert("A fase de ranking foi encerrada. Não é possível adicionar novos jogadores durante o torneio.");
+                return;
+            }
             const input = document.getElementById('newUsername');
             const classSelect = document.getElementById('newClass');
             const username = input.value.trim();
             if (!username) return alert("Digite um nome de usuário válido!");
 
-            RankingManager.addOrUpdatePlayer(username, classSelect.value, 100);
+            RankingManager.addOrUpdatePlayer(username, classSelect.value, 150);
             input.value = '';
         });
 
-        document.getElementById('toggleBattleBtn').addEventListener('click', (e) => {
-            gameState.battle.active = !gameState.battle.active;
-            const statusText = document.getElementById('battleStatusText');
-            if (gameState.battle.active) {
-                e.target.innerText = "Pausar Batalha";
-                e.target.className = "danger";
-                statusText.innerText = "Ativo";
-                statusText.style.color = "var(--success)";
-            } else {
-                e.target.innerText = "Retomar Batalha";
-                e.target.className = "";
-                statusText.innerText = "Pausado";
-                statusText.style.color = "var(--accent)";
+        document.getElementById('skipRankingBtn').addEventListener('click', () => {
+            if (gameState.phase === 'RANKING') {
+                TournamentManager.initTournament();
             }
         });
 
-        function simGift(coins) {
+        function simGiftRanking(coins) {
             const select = document.getElementById('targetPlayerSelect');
             const username = select.value;
             if (!username) {
@@ -763,23 +1096,41 @@
             GiftService.simulate(username, coins);
         }
 
-        // Conectar GiftService ao RankingManager
+        function simGiftTournament(username, coins) {
+            GiftService.simulate(username, coins);
+        }
+
+        // Conectar GiftService
         GiftService.onGiftReceived(event => {
-            // Encontra a classe atual do jogador ou usa Guerreiro como padrão
-            const existing = gameState.players.find(p => p.username === event.username);
-            const charClass = existing ? existing.charClass : "Guerreiro";
-            RankingManager.addOrUpdatePlayer(event.username, charClass, event.coins);
+            if (gameState.phase === 'RANKING') {
+                const existing = gameState.players.find(p => p.username === event.username);
+                const charClass = existing ? existing.charClass : "Guerreiro";
+                RankingManager.addOrUpdatePlayer(event.username, charClass, event.coins);
+            } else if (gameState.phase === 'TOURNAMENT') {
+                // Durante o torneio, presentes aplicam efeito imediato de poder/HP/força ou bônus no lutador ativo correspondente
+                let targetFighter = null;
+                if (tournamentState.fighterA && tournamentState.fighterA.username === event.username) {
+                    targetFighter = tournamentState.fighterA;
+                } else if (tournamentState.fighterB && tournamentState.fighterB.username === event.username) {
+                    targetFighter = tournamentState.fighterB;
+                }
+
+                if (targetFighter) {
+                    targetFighter.strength += Math.floor(event.coins / 20); // Bônus temporário de força baseado no presente
+                    targetFighter.hp = Math.min(targetFighter.maxHp, targetFighter.hp + Math.floor(event.coins / 10)); // Bônus de cura
+                    if (DEBUG) console.log(`[Gift Tournament] @${event.username} apoiado! Força aumentada para ${targetFighter.strength}, HP recuperado para ${targetFighter.hp}`);
+                    UI.renderTournamentBattle();
+                } else {
+                    if (DEBUG) console.log(`[Gift Tournament] @${event.username} não está lutando na partida atual.`);
+                }
+            }
         });
 
-        // Inicialização de Teste e Loops de Batalha
+        // Inicialização
         window.addEventListener('DOMContentLoaded', () => {
-            Game.initDemoPlayers(22); // Cria 22 jogadores para testar Top 20 vs Fila de Espera
-            BattleManager.startTimer();
-
-            // Loop de combate automático a cada 2.5 segundos
-            setInterval(() => {
-                BattleManager.tickCombats();
-            }, 2500);
+            Game.initDemoPlayers(25); // Cria 25 jogadores para teste (20 na arena, 5 na espera)
+            UI.updateRankingTimerDisplay();
+            Game.startRankingTimer();
         });
     </script>
 </body>
