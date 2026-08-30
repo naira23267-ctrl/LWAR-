@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>LWAR Arena</title>
+    <!-- PWA meta tags para iOS e Android -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LWAR Arena">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --bg-color: #0f0f13;
+            --panel-bg: #1a1a24;
+            --border-color: #2a2a3d;
+            --text-color: #ffffff;
+            --text-muted: #a0a0b2;
+            --accent-gold: #f1c40f;
+            --accent-blue: #3498db;
+            --accent-red: #e74c3c;
+            --accent-green: #2ecc71;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: env(safe-area-inset-top, 10px) 10px env(safe-area-inset-bottom, 10px) 10px;
+            overflow-x: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 8px;
+            width: 100%;
+            max-width: 450px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            color: var(--accent-gold);
+            text-shadow: 0 0 10px rgba(241, 196, 15, 0.4);
+        }
+
+        .timer-container {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-top: 4px;
+            color: var(--text-muted);
+        }
+
+        .timer-container span {
+            color: var(--text-color);
+            background: var(--panel-bg);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .main-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            max-width: 450px;
+            align-items: center;
+        }
+
+        .arena-container {
+            position: relative;
+            background: #08080c;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            width: 100%;
+            aspect-ratio: 1 / 1;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #14141e 0%, #08080c 100%);
+        }
+
+        .sidebar {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            width: 100%;
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            background: #222230;
+            padding: 8px;
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--accent-gold);
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+        }
+
+        .ranking-list {
+            list-style: none;
+            overflow-y: auto;
+            flex-grow: 1;
+            padding: 4px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .ranking-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            margin-bottom: 3px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            border-left: 4px solid transparent;
+        }
+
+        .ranking-item.top-1 {
+            background: rgba(241, 196, 15, 0.15);
+            border-left-color: var(--accent-gold);
+            font-weight: bold;
+        }
+
+        .ranking-item.top-2 { border-left-color: #bdc3c7; }
+        .ranking-item.top-3 { border-left-color: #d35400; }
+
+        .ranking-item.eliminated {
+            opacity: 0.4;
+            text-decoration: line-through;
+        }
+
+        .controls-panel {
+            width: 100%;
+            max-width: 450px;
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .controls-panel .btn-restart {
+            grid-column: span 2;
+        }
+
+        .btn {
+            padding: 12px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            color: white;
+            text-align: center;
+            touch-action: manipulation;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-gift-1 {
+            background: linear-gradient(135deg, #f39c12, #d35400);
+        }
+
+        .btn-gift-2 {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .btn-restart {
+            background: linear-gradient(135deg, #7f8c8d, #34495e);
+        }
+
+        #gift-overlay {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid var(--accent-gold);
+            padding: 15px 20px;
+            border-radius: 12px;
+            text-align: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
+            box-shadow: 0 0 25px rgba(241, 196, 15, 0.5);
+            width: 80%;
+        }
+
+        #gift-overlay.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        #gift-overlay h2 {
+            color: var(--accent-gold);
+            font-size: 1.2rem;
+            margin-bottom: 4px;
+        }
+
+        #gift-overlay p {
+            font-size: 0.95rem;
+            color: #fff;
+        }
+
+        #game-over-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            display: none;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: var(--panel-bg);
+            border: 2px solid var(--accent-gold);
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            width: 100%;
+            max-width: 360px;
+            box-shadow: 0 0 40px rgba(241, 196, 15, 0.3);
+        }
+
+        .modal-content h2 {
+            color: var(--accent-gold);
+            font-size: 1.6rem;
+            margin-bottom: 12px;
+        }
+
+        .modal-content p {
+            font-size: 1rem;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>LWAR ARENA V1.1</h1>
+        <div class="timer-container">Tempo Restante: <span id="timer-display">60</span>s</div>
+    </header>
+
+    <div class="main-layout">
+        <div class="arena-container">
+            <canvas id="arenaCanvas" width="400" height="400"></canvas>
+            <div id="gift-overlay">
+                <h2 id="overlay-title">⚡ PRESENTE!</h2>
+                <p id="overlay-desc">NOME +300 PONTOS</p>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-header">🏆 TOP 20</div>
+            <ul class="ranking-list" id="rankingList"></ul>
+        </div>
+    </div>
+
+    <div class="controls-panel">
+        <button class="btn btn-gift-1" onclick="receiveGift(null, 'PRESENTE')">⚡ PRESENTE (+300)</button>
+        <button class="btn btn-gift-2" onclick="receiveGift(null, 'PRESENTE GRANDE')">🔥 PRESENTE GRANDE (+500)</button>
+        <button class="btn btn-restart" onclick="initGame()">🔄 REINICIAR</button>
+    </div>
+
+    <div id="game-over-modal">
+        <div class="modal-content">
+            <h2>🏆 VENCEDOR</h2>
+            <p id="winner-text">1º LUGAR: NOME</p>
+            <p id="winner-score" style="color: var(--accent-gold); font-weight: bold; font-size: 1.2rem;">PONTOS: 0</p>
+            <button class="btn btn-gift-1" style="width: 100%;" onclick="initGame()">Jogar Novamente</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('arenaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const NAMES = [
+            "Zago", "Ninja", "Ghost", "Kauan", "Lobo", "Rato", "Drako", "Mestre", 
+            "Titan", "Zero", "Furia", "Dark", "Viper", "Killer", "Wolf", "King", 
+            "Neo", "Rex", "Ace", "Boss"
+        ];
+
+        const COLORS = [
+            '#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', 
+            '#1abc9c', '#e67e22', '#34495e', '#e84393', '#00cec9', 
+            '#fdcb6e', '#6c5ce7', '#ff7675', '#74b9ff', '#55efc4', 
+            '#ffeaa7', '#fab1a0', '#dfe6e9', '#b2bec3', '#636e72'
+        ];
+
+        let characters = [];
+        let timeLeft = 60;
+        let gameInterval = null;
+        let timerInterval = null;
+        let isRunning = false;
+        let lastRankingUpdate = 0;
+        let sortedCache = [];
+
+        function initGame() {
+            document.getElementById('game-over-modal').style.display = 'none';
+            characters = [];
+            timeLeft = 60;
+            document.getElementById('timer-display').innerText = timeLeft;
+
+            for (let i = 0; i < 20; i++) {
+                let radius = 10;
+                let x, y, overlapping;
+                let attempts = 0;
+                do {
+                    x = Math.random() * (canvas.width - 50) + 25;
+                    y = Math.random() * (canvas.height - 50) + 25;
+                    overlapping = characters.some(c => Math.hypot(c.x - x, c.y - y) < 35);
+                    attempts++;
+                } while (overlapping && attempts < 50);
+
+                characters.push({
+                    id: i,
+                    name: NAMES[i],
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 1.2,
+                    vy: (Math.random() - 0.5) * 1.2,
+                    hp: 100,
+                    maxHp: 100,
+                    score: 0,
+                    alive: true,
+                    color: COLORS[i],
+                    radius: radius,
+                    attackCooldown: 0,
+                    effectTimer: 0
+                });
+            }
+
+            if (gameInterval) clearInterval(gameInterval);
+            if (timerInterval) clearInterval(timerInterval);
+
+            isRunning = true;
+            gameInterval = setInterval(updateAndRender, 1000 / 60);
+            timerInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    document.getElementById('timer-display').innerText = timeLeft;
+                    characters.forEach(c => {
+                        if (c.alive) c.score += 2;
+                    });
+                    if (timeLeft === 0) {
+                        endGame();
+                    }
+                }
+            }, 1000);
+
+            updateRanking();
+            updateRankingDOM(true);
+        }
+
+        function updateAndRender() {
+            if (!isRunning) return;
+
+            characters.forEach(c => {
+                if (!c.alive) return;
+
+                if (c.effectTimer > 0) c.effectTimer--;
+
+                let nearest = null;
+                let minDist = Infinity;
+                characters.forEach(other => {
+                    if (other.id !== c.id && other.alive) {
+                        let dist = Math.hypot(other.x - c.x, other.y - c.y);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            nearest = other;
+                        }
+                    }
+                });
+
+                if (nearest) {
+                    let angle = Math.atan2(nearest.y - c.y, nearest.x - c.x);
+                    let speed = 1.1;
+
+                    if (minDist > 25) {
+                        c.vx = Math.cos(angle) * speed;
+                        c.vy = Math.sin(angle) * speed;
+                    } else {
+                        c.vx = (Math.random() - 0.5) * 1.8;
+                        c.vy = (Math.random() - 0.5) * 1.8;
+
+                        if (c.attackCooldown <= 0) {
+                            nearest.hp -= Math.floor(Math.random() * 8) + 5;
+                            nearest.effectTimer = 8;
+                            c.attackCooldown = 40;
+
+                            if (nearest.hp <= 0) {
+                                nearest.hp = 0;
+                                nearest.alive = false;
+                                c.score += 150;
+                            }
+                        }
+                    }
+                } else {
+                    c.vx = (Math.random() - 0.5) * 1.2;
+                    c.vy = (Math.random() - 0.5) * 1.2;
+                }
+
+                if (c.attackCooldown > 0) c.attackCooldown--;
+
+                c.x += c.vx;
+                c.y += c.vy;
+
+                if (c.x < c.radius) { c.x = c.radius; c.vx *= -1; }
+                if (c.x > canvas.width - c.radius) { c.x = canvas.width - c.radius; c.vx *= -1; }
+                if (c.y < c.radius) { c.y = c.radius; c.vy *= -1; }
+                if (c.y > canvas.height - c.radius) { c.y = canvas.height - c.radius; c.vy *= -1; }
+            });
+
+            let aliveCount = characters.filter(c => c.alive).length;
+            if (aliveCount === 0 && timeLeft > 0) {
+                endGame();
+                return;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 40) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+
+            characters.forEach(c => {
+                if (!c.alive) return;
+
+                if (c.effectTimer > 0) {
+                    ctx.beginPath();
+                    ctx.arc(c.x, c.y, c.radius + 5, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(231, 76, 60, 0.4)';
+                    ctx.fill();
+                }
+
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+                ctx.fillStyle = c.color;
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
+
+                let barWidth = 20;
+                let barHeight = 3;
+                let hpPercent = c.hp / c.maxHp;
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(c.x - barWidth / 2, c.y - c.radius - 8, barWidth, barHeight);
+                ctx.fillStyle = hpPercent > 0.5 ? '#2ecc71' : (hpPercent > 0.2 ? '#f1c40f' : '#e74c3c');
+                ctx.fillRect(c.x - barWidth / 2, c.y - c.radius - 8, barWidth * hpPercent, barHeight);
+
+                ctx.fillStyle = '#fff';
+                ctx.font = '9px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(c.name, c.x, c.y - c.radius - 11);
+            });
+
+            // Otimização: Ranking atualizado a cada 500ms para evitar gargalo no iPhone
+            let now = Date.now();
+            if (now - lastRankingUpdate > 500) {
+                updateRanking();
+                updateRankingDOM();
+                lastRankingUpdate = now;
+            }
+        }
+
+        // Função global exposta para integração futura (TikTok Live)
+        window.receiveGift = function(playerName, giftType) {
+            if (!isRunning) return;
+
+            let livePlayers = characters.filter(c => c.alive);
+            if (livePlayers.length === 0) return;
+
+            let target = null;
+            if (playerName) {
+                target = characters.find(c => c.name === playerName && c.alive);
+            }
+            if (!target) {
+                target = livePlayers[Math.floor(Math.random() * livePlayers.length)];
+            }
+
+            let points = giftType === 'PRESENTE GRANDE' ? 500 : 300;
+            let hpBonus = giftType === 'PRESENTE GRANDE' ? 20 : 10;
+
+            target.score += points;
+            target.hp = Math.min(target.maxHp, target.hp + hpBonus);
+
+            showGiftVisualEffect(target.name, giftType, points);
+            updateRanking();
+            updateRankingDOM(true);
+        };
+
+        function showGiftVisualEffect(name, type, points) {
+            const overlay = document.getElementById('gift-overlay');
+            document.getElementById('overlay-title').innerText = type === 'PRESENTE GRANDE' ? '🔥 PRESENTE GRANDE!' : '⚡ PRESENTE!';
+            document.getElementById('overlay-desc').innerText = `${name} +${points} PONTOS`;
+            
+            overlay.classList.add('show');
+            setTimeout(() => {
+                overlay.classList.remove('show');
+            }, 1000);
+        }
+
+        function updateRanking() {
+            sortedCache = [...characters].sort((a, b) => b.score - a.score);
+        }
+
+        function updateRankingDOM(force = false) {
+            if (sortedCache.length === 0) updateRanking();
+            const list = document.getElementById('rankingList');
+            
+            let html = '';
+            sortedCache.forEach((c, index) => {
+                let rankClass = index === 0 ? 'top-1' : (index === 1 ? 'top-2' : (index === 2 ? 'top-3' : ''));
+                let elimClass = !c.alive ? 'eliminated' : '';
+                html += `
+                    <li class="ranking-item ${rankClass} ${elimClass}">
+                        <span>${index + 1}. ${c.name}</span>
+                        <span>${c.score} pts</span>
+                    </li>
+                `;
+            });
+            list.innerHTML = html;
+        }
+
+        function endGame() {
+            isRunning = false;
+            clearInterval(gameInterval);
+            clearInterval(timerInterval);
+
+            updateRanking();
+            let winner = sortedCache[0] || characters[0];
+
+            document.getElementById('winner-text').innerText = `1º LUGAR: ${winner.name}`;
+            document.getElementById('winner-score').innerText = `PONTOS: ${winner.score}`;
+            document.getElementById('game-over-modal').style.display = 'flex';
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registrado:', reg))
+                    .catch(err => console.log('Erro SW:', err));
+            });
+        }
+
+        window.onload = () => {
+            initGame();
+        };
+    </script>
+</body>
+</html>
+
