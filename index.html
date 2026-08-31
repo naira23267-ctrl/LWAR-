@@ -1,431 +1,577 @@
+Aqui está o código completo e oficial do index.html da V1.6 do LWAR ARENA.
+O código inclui o Motor de Combate (CombatEngine) baseado em Canvas 60 FPS, sistema de posições e aproximação sem sobreposição, 5 classes com estilos e habilidades visuais únicas, combos, acerto crítico, bloqueio, esquiva com shadow-dash, parada de impacto (hitstop), sistema de presentes com bônus temporários em tempo real (incluindo o Poder Divino 49.999), Modo Frenesi nos últimos 10s, log de combate em tempo real e preservação exata da lógica do Torneio da V1.5 (#19 VS #20 até o Campeão #1).
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LWAR ARENA V1.5 - Torneio Medieval RPG</title>
+    <title>LWAR ARENA V1.6 - Motor de Combate Oficial</title>
     <style>
         :root {
-            --bg-dark: #0a0908;
-            --panel-bg: #161412;
-            --panel-border: #3a3228;
-            --gold: #d4af37;
-            --gold-bright: #fff0a8;
-            --parchment: #e2d2b4;
-            --red-frenzy: #e74c3c;
-            --red-frenzy-glow: #ff2a00;
-            --blue-magic: #3498db;
-            --green-hp: #2ecc71;
-            --text-light: #f0e6d2;
-            --text-muted: #9a8c78;
+            --bg-dark: #0b0e14;
+            --bg-card: #151a23;
+            --bg-card-hover: #1c2330;
+            --accent-cyan: #00f0ff;
+            --accent-gold: #ffc800;
+            --accent-red: #ff2a5f;
+            --accent-green: #00ff88;
+            --accent-purple: #9d4edd;
+            --text-main: #f0f4f8;
+            --text-muted: #8a99ad;
+            --border-color: #232d3f;
+            --frenzy-glow: #ff3300;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Cinzel', 'Georgia', serif, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             user-select: none;
         }
 
         body {
             background-color: var(--bg-dark);
-            background-image: 
-                radial-gradient(circle at 50% 20%, #221c16 0%, #0a0908 80%),
-                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 3px);
-            color: var(--text-light);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            padding: 10px;
             overflow-x: hidden;
         }
 
-        /* HEADER & TOP BAR */
-        .rpg-header {
-            width: 100%;
-            max-width: 1280px;
-            text-align: center;
-            padding: 15px;
-            background: linear-gradient(180deg, #2a221b 0%, #16120e 100%);
-            border: 2px solid var(--gold);
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2), inset 0 0 10px #000;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            position: relative;
+        /* HEADER */
+        header {
+            background: linear-gradient(180deg, rgba(21,26,35,0.95) 0%, rgba(11,14,20,0.95) 100%);
+            border-bottom: 2px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            z-index: 10;
         }
 
-        .rpg-header h1 {
-            font-size: 2.2rem;
-            color: var(--gold);
-            text-shadow: 2px 2px 4px #000, 0 0 10px rgba(212, 175, 55, 0.5);
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-title {
+            font-size: 1.5rem;
+            font-weight: 900;
             letter-spacing: 2px;
+            background: linear-gradient(45deg, var(--accent-cyan), var(--accent-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             text-transform: uppercase;
         }
 
-        .rpg-header .subtitle {
-            font-size: 0.9rem;
-            color: var(--parchment);
-            margin-top: 4px;
-            font-style: italic;
-        }
-
-        .controls-bar {
-            margin-top: 12px;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .btn-rpg {
-            background: linear-gradient(180deg, #4a3b2c 0%, #281f16 100%);
-            color: var(--gold-bright);
-            border: 1px solid var(--gold);
-            padding: 8px 16px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            cursor: pointer;
+        .version-tag {
+            background: var(--accent-red);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 2px 8px;
             border-radius: 4px;
-            transition: all 0.2s ease;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.6);
-            text-shadow: 1px 1px 2px #000;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .btn-rpg:hover {
-            background: linear-gradient(180deg, #614d3a 0%, #3d2f22 100%);
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
             transform: translateY(-1px);
         }
 
-        .btn-rpg:active {
-            transform: translateY(1px);
+        .btn-primary {
+            background: linear-gradient(135deg, #0088ff 0%, #00f0ff 100%);
+            color: #000;
+            border: none;
         }
 
-        .btn-rpg:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            border-color: #555;
+        .btn-primary:hover {
+            box-shadow: 0 0 15px rgba(0,240,255,0.4);
+            color: #000;
         }
 
-        /* MAIN GRID LAYOUT */
-        .rpg-layout {
+        .btn-danger {
+            background: linear-gradient(135deg, #e63946 0%, #ff2a5f 100%);
+            color: #fff;
+            border: none;
+        }
+
+        /* LAYOUT PRINCIPAL */
+        .main-container {
             display: grid;
-            grid-template-columns: 280px 1fr 280px;
+            grid-template-columns: 320px 1fr 340px;
             gap: 15px;
+            padding: 15px;
+            flex: 1;
+            max-width: 1800px;
+            margin: 0 auto;
             width: 100%;
-            max-width: 1280px;
         }
 
-        .rpg-panel {
-            background: var(--panel-bg);
-            border: 2px solid var(--panel-border);
-            border-radius: 6px;
-            padding: 12px;
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 5px 15px rgba(0,0,0,0.5);
+        /* COLUNA DA ESQUERDA: TOP 20 & TORNEIO */
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
             display: flex;
             flex-direction: column;
-            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
         }
 
-        .panel-title {
-            font-size: 1.1rem;
-            color: var(--gold);
-            border-bottom: 1px solid var(--panel-border);
-            padding-bottom: 6px;
-            margin-bottom: 10px;
-            text-align: center;
+        .panel-header {
+            background: rgba(0,0,0,0.2);
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 800;
+            font-size: 0.95rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--accent-gold);
             text-transform: uppercase;
             letter-spacing: 1px;
+        }
+
+        .tournament-status {
+            padding: 10px 15px;
+            background: rgba(0, 240, 255, 0.05);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.8rem;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        /* TOP 20 PANEL */
-        .ranking-list {
-            list-style: none;
-            overflow-y: auto;
-            max-height: 520px;
-            padding-right: 4px;
-        }
-
-        .ranking-list::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .ranking-list::-webkit-scrollbar-thumb {
-            background: var(--panel-border);
-            border-radius: 3px;
-        }
-
-        .rank-item {
-            display: flex;
-            align-items: center;
             justify-content: space-between;
-            background: rgba(0,0,0,0.4);
-            border: 1px solid rgba(255,255,255,0.05);
-            padding: 6px 10px;
-            margin-bottom: 4px;
+            align-items: center;
+        }
+
+        .status-badge {
+            padding: 3px 8px;
             border-radius: 4px;
-            font-size: 0.85rem;
-        }
-
-        .rank-item.active-fighter {
-            border-color: var(--gold);
-            background: rgba(212, 175, 55, 0.15);
-            box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
-        }
-
-        .rank-item.eliminated {
-            opacity: 0.4;
-            text-decoration: line-through;
-        }
-
-        .rank-pos {
-            font-weight: bold;
-            color: var(--gold);
-            width: 30px;
-        }
-
-        .rank-name {
-            flex-grow: 1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .rank-score {
+            font-weight: 800;
             font-size: 0.75rem;
+        }
+
+        .status-waiting { background: rgba(255, 200, 0, 0.2); color: var(--accent-gold); }
+        .status-frozen { background: rgba(0, 240, 255, 0.2); color: var(--accent-cyan); }
+        .status-active { background: rgba(0, 255, 136, 0.2); color: var(--accent-green); }
+
+        .ranking-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+
+        .ranking-item.active-fighter {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 240, 255, 0.1);
+            transform: scale(1.02);
+        }
+
+        .ranking-item.eliminated {
+            opacity: 0.4;
+            filter: grayscale(1);
+        }
+
+        .rank-num {
+            font-weight: 900;
+            width: 32px;
             color: var(--text-muted);
         }
 
-        .frozen-badge {
-            background: #2980b9;
-            color: #fff;
-            font-size: 0.7rem;
-            padding: 2px 6px;
-            border-radius: 3px;
-            margin-left: 6px;
-            text-transform: uppercase;
-            font-weight: bold;
-        }
+        .rank-1 .rank-num { color: var(--accent-gold); font-size: 1.1rem; }
+        .rank-2 .rank-num { color: #c0c0c0; }
+        .rank-3 .rank-num { color: #cd7f32; }
 
-        /* ARENA CENTRAL PANEL */
-        .arena-panel {
+        .player-info {
+            flex: 1;
             display: flex;
             flex-direction: column;
-            align-items: center;
         }
 
-        .phase-banner {
+        .player-name {
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .player-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 8px;
+        }
+
+        .class-badge {
+            font-size: 0.7rem;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* COLUNA CENTRAL: ARENA DE COMBATE */
+        .arena-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .match-header {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+
+        .fighter-hud {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 40%;
+        }
+
+        .fighter-hud.right {
+            flex-direction: row-reverse;
+            text-align: right;
+        }
+
+        .hud-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: #2a3447;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            border: 2px solid var(--border-color);
+        }
+
+        .hud-details {
+            flex: 1;
+        }
+
+        .hud-name {
+            font-weight: 800;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .hp-bar-outer {
+            height: 14px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 7px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+        }
+
+        .hp-bar-inner {
+            height: 100%;
             width: 100%;
-            background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.2), transparent);
-            border-top: 1px solid var(--gold);
-            border-bottom: 1px solid var(--gold);
-            text-align: center;
-            padding: 6px;
-            margin-bottom: 10px;
-            font-weight: bold;
-            color: var(--gold-bright);
-            font-size: 1.1rem;
-            letter-spacing: 1px;
-            text-shadow: 0 0 8px rgba(212, 175, 55, 0.8);
+            background: linear-gradient(90deg, #00ff88, #00b894);
+            transition: width 0.15s ease-out;
+        }
+
+        .hp-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            font-size: 0.65rem;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 0 1px 2px #000;
+        }
+
+        .vs-badge {
+            font-size: 1.2rem;
+            font-weight: 900;
+            font-style: italic;
+            color: var(--accent-red);
+            background: rgba(255, 42, 95, 0.1);
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 42, 95, 0.3);
         }
 
         .timer-display {
-            font-size: 1.4rem;
-            font-weight: bold;
-            color: var(--text-light);
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-weight: 900;
+            font-size: 0.85rem;
+            color: var(--accent-gold);
         }
 
         .timer-display.frenzy {
-            color: var(--red-frenzy);
+            color: #ff2a5f;
+            border-color: #ff2a5f;
             animation: pulse-frenzy 0.5s infinite alternate;
-            text-shadow: 0 0 12px var(--red-frenzy-glow);
         }
 
         @keyframes pulse-frenzy {
-            from { transform: scale(1); }
-            to { transform: scale(1.1); }
+            from { transform: translateX(-50%) scale(1); box-shadow: 0 0 5px #ff2a5f; }
+            to { transform: translateX(-50%) scale(1.1); box-shadow: 0 0 15px #ff2a5f; }
         }
 
         /* CANVAS ARENA */
         .canvas-wrapper {
             position: relative;
             width: 100%;
-            aspect-ratio: 16 / 9;
-            max-height: 380px;
-            background: #000;
-            border: 3px solid var(--panel-border);
-            border-radius: 6px;
-            box-shadow: inset 0 0 20px #000, 0 0 15px rgba(0,0,0,0.9);
+            height: 380px;
+            background: #080a0f;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
             overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
         }
 
-        .canvas-wrapper.frenzy-mode {
-            border-color: var(--red-frenzy);
-            box-shadow: inset 0 0 30px rgba(231, 76, 60, 0.5), 0 0 20px var(--red-frenzy-glow);
-        }
-
-        #arenaCanvas {
+        #combatCanvas {
             width: 100%;
             height: 100%;
             display: block;
         }
 
-        /* MATCH HUD OVERLAY */
-        .hud-overlay {
+        .frenzy-banner {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            background: linear-gradient(90deg, transparent, rgba(255, 42, 95, 0.8), transparent);
+            color: #fff;
+            font-weight: 900;
+            font-size: 1.8rem;
+            letter-spacing: 4px;
+            padding: 5px 40px;
+            pointer-events: none;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-shadow: 0 0 10px #000;
+            z-index: 5;
+        }
+
+        .frenzy-banner.show {
+            transform: translateX(-50%) scale(1);
+        }
+
+        /* LOG DE COMBATE */
+        .combat-log-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            height: 160px;
             display: flex;
-            justify-content: space-between;
-            width: 100%;
-            margin-top: 10px;
-            gap: 10px;
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        .hud-card {
-            flex: 1;
-            background: rgba(0,0,0,0.6);
-            border: 1px solid var(--panel-border);
-            padding: 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-        }
-
-        .hud-card.left { border-left: 3px solid #e74c3c; }
-        .hud-card.right { border-right: 3px solid #3498db; text-align: right; }
-
-        .hud-name {
-            font-weight: bold;
-            color: var(--gold-bright);
-            font-size: 0.95rem;
-        }
-
-        .hud-stats {
-            color: var(--text-muted);
-            margin-top: 2px;
+        .log-header {
+            padding: 6px 12px;
+            background: rgba(0,0,0,0.3);
             font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            text-transform: uppercase;
         }
 
-        /* EVENT BATTLE LOG */
-        .battle-log {
-            width: 100%;
-            height: 110px;
-            background: rgba(0,0,0,0.7);
-            border: 1px solid var(--panel-border);
-            border-radius: 4px;
-            margin-top: 10px;
-            padding: 8px;
+        .log-messages {
+            flex: 1;
             overflow-y: auto;
-            font-size: 0.8rem;
+            padding: 8px 12px;
             display: flex;
-            flex-direction: column-reverse;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.8rem;
+            font-family: monospace;
         }
-
-        .battle-log::-webkit-scrollbar { width: 4px; }
-        .battle-log::-webkit-scrollbar-thumb { background: var(--panel-border); }
 
         .log-entry {
-            margin-bottom: 3px;
             line-height: 1.3;
+            color: #b0c0d0;
+            animation: fadeIn 0.2s ease;
         }
 
-        .log-attack { color: #f39c12; }
-        .log-gift { color: #2ecc71; font-weight: bold; }
-        .log-frenzy { color: var(--red-frenzy); font-weight: bold; }
-        .log-system { color: #9b59b6; }
+        .log-entry.crit { color: #ffcc00; font-weight: bold; }
+        .log-entry.heavy { color: #ff5555; font-weight: bold; }
+        .log-entry.gift { color: #00f0ff; font-weight: bold; }
+        .log-entry.frenzy { color: #ff2a5f; font-weight: bold; }
 
-        /* SUPPORT / GIFT PANEL */
-        .gift-box {
-            background: rgba(0,0,0,0.4);
-            border: 1px solid var(--panel-border);
-            border-radius: 4px;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* COLUNA DA DIREITA: SIMULADOR DE PRESENTES & PAINEL DE CONTROLE */
+        .gift-simulator {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 12px;
+        }
+
+        .gift-target-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+
+        .target-btn {
+            flex: 1;
             padding: 8px;
-            margin-bottom: 10px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
         }
 
-        .gift-fighter-title {
-            font-size: 0.85rem;
-            color: var(--gold);
-            margin-bottom: 6px;
-            font-weight: bold;
+        .target-btn.selected {
+            border-color: var(--accent-gold);
+            background: rgba(255, 200, 0, 0.15);
+            color: var(--accent-gold);
         }
 
-        .gift-buttons {
+        .gift-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
+            gap: 8px;
         }
 
-        .btn-gift {
-            background: linear-gradient(180deg, #1e3c20 0%, #0d1e0f 100%);
-            border: 1px solid #2ecc71;
-            color: #2ecc71;
-            padding: 6px;
-            font-size: 0.75rem;
-            font-weight: bold;
+        .gift-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
             cursor: pointer;
-            border-radius: 3px;
             transition: all 0.2s ease;
         }
 
-        .btn-gift:hover {
-            background: linear-gradient(180deg, #27562a 0%, #132e16 100%);
-            box-shadow: 0 0 8px rgba(46, 204, 113, 0.4);
+        .gift-card:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 240, 255, 0.08);
+            transform: translateY(-2px);
         }
 
-        .btn-gift:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            border-color: #444;
-            color: #888;
+        .gift-card.divine {
+            grid-column: span 2;
+            background: linear-gradient(135deg, rgba(255,200,0,0.15) 0%, rgba(255,42,95,0.15) 100%);
+            border-color: var(--accent-gold);
         }
 
-        .queue-box {
-            margin-top: auto;
-            background: rgba(0,0,0,0.5);
-            border: 1px dashed var(--panel-border);
-            padding: 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
+        .gift-card.divine:hover {
+            box-shadow: 0 0 15px rgba(255, 200, 0, 0.4);
         }
 
-        .queue-title {
-            color: var(--text-muted);
-            font-weight: bold;
-            margin-bottom: 4px;
+        .gift-icon { font-size: 1.4rem; }
+        .gift-val { font-weight: 800; font-size: 0.85rem; color: var(--accent-gold); }
+        .gift-desc { font-size: 0.68rem; color: var(--text-muted); text-align: center; }
+
+        /* OVERLAY DE VITORIA */
+        .champion-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(8, 10, 15, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
         }
 
-        /* RESPONSIVE DESIGN (MOBILE FIXES) */
-        @media (max-width: 900px) {
-            .rpg-layout {
+        .champion-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .champion-card {
+            background: var(--bg-card);
+            border: 2px solid var(--accent-gold);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(255, 200, 0, 0.3);
+            max-width: 450px;
+            width: 90%;
+            animation: popup 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popup {
+            from { transform: scale(0.8); }
+            to { transform: scale(1); }
+        }
+
+        .champion-trophy { font-size: 4rem; margin-bottom: 10px; }
+        .champion-title { font-size: 1.8rem; font-weight: 900; color: var(--accent-gold); margin-bottom: 5px; }
+        .champion-name { font-size: 1.4rem; font-weight: 800; margin-bottom: 15px; color: #fff; }
+
+        /* RESPONSIVIDADE (MOBILE FIT) */
+        @media (max-width: 1024px) {
+            .main-container {
                 grid-template-columns: 1fr;
+                flex-direction: column;
             }
-
-            .arena-panel {
-                order: 1; /* Arena Top */
-            }
-
-            .top20-panel {
-                order: 2; /* Ranking Middle */
-            }
-
-            .support-panel {
-                order: 3; /* Support Bottom */
-            }
-
-            .ranking-list {
-                max-height: 250px;
-            }
-
-            .rpg-header h1 {
-                font-size: 1.6rem;
+            .canvas-wrapper {
+                height: 300px;
             }
         }
     </style>
@@ -433,744 +579,1002 @@
 <body>
 
     <!-- HEADER -->
-    <header class="rpg-header">
-        <h1>⚔️ LWAR ARENA V1.5 ⚔️</h1>
-        <div class="subtitle">A Grande Arena dos Campeões</div>
-        <div class="controls-bar">
-            <button class="btn-rpg" id="btnPopulate">👥 Popular com 25 Jogadores</button>
-            <button class="btn-rpg" id="btnStartTournament" disabled>⚔️ Iniciar Torneio</button>
-            <button class="btn-rpg" id="btnReset">🔄 Reiniciar</button>
+    <header>
+        <div class="logo-area">
+            <div class="logo-title">Lwar Arena</div>
+            <div class="version-tag">v1.6 Oficial</div>
+        </div>
+        <div class="header-controls">
+            <button class="btn" id="btnGen25">🎲 Criar 25 Jogadores</button>
+            <button class="btn btn-primary" id="btnStartTournament">🏆 Iniciar Torneio</button>
+            <button class="btn btn-danger" id="btnReset">🔄 Reset</button>
         </div>
     </header>
 
-    <!-- MAIN INTERFACE GRID -->
-    <div class="rpg-layout">
+    <!-- LAYOUT PRINCIPAL -->
+    <div class="main-container">
 
-        <!-- PANEL 1: TOP 20 RANKING -->
-        <div class="rpg-panel top20-panel">
-            <div class="panel-title">
-                🏆 Top 20 Ranking
-                <span id="frozenTag" class="frozen-badge" style="display: none;">🔒 Congelado</span>
+        <!-- PAINEL ESQUERDO: TORNEIO & RANKING -->
+        <div class="panel">
+            <div class="panel-header">
+                <span>Top 20 Ranking</span>
+                <span id="rankCount">0/20</span>
             </div>
-            <ul class="ranking-list" id="rankingList">
-                <li style="text-align:center; color: var(--text-muted); padding: 20px;">
-                    Clique em "Popular com 25 Jogadores" para iniciar.
-                </li>
-            </ul>
-        </div>
-
-        <!-- PANEL 2: VISUAL ARENA CENTRAL -->
-        <div class="rpg-panel arena-panel">
-            <div class="phase-banner" id="phaseBanner">AGUARDANDO JOGADORES</div>
-
-            <div class="timer-display" id="timerDisplay">
-                ⏱️ 00:60
+            <div class="tournament-status">
+                <span>Status do Torneio:</span>
+                <span class="status-badge status-waiting" id="tournamentStatusBadge">Aguardando</span>
             </div>
-
-            <!-- CANVAS FOR STICKMAN Fights -->
-            <div class="canvas-wrapper" id="canvasWrapper">
-                <canvas id="arenaCanvas" width="800" height="450"></canvas>
-            </div>
-
-            <!-- ACTIVE FIGHTERS HUD OVERLAY -->
-            <div class="hud-overlay">
-                <div class="hud-card left" id="hudFighterA">
-                    <div class="hud-name">Lutador A</div>
-                    <div class="hud-stats">Aguardando...</div>
-                </div>
-                <div class="hud-card right" id="hudFighterB">
-                    <div class="hud-name">Lutador B</div>
-                    <div class="hud-stats">Aguardando...</div>
-                </div>
-            </div>
-
-            <!-- EVENT & DAMAGE LOG -->
-            <div class="battle-log" id="battleLog">
-                <div class="log-entry log-system">⚔️ Bem-vindo à LWAR ARENA V1.5!</div>
+            <div class="ranking-list" id="rankingList">
+                <!-- Preenchido via JS -->
             </div>
         </div>
 
-        <!-- PANEL 3: SUPPORT & GIFTS -->
-        <div class="rpg-panel support-panel">
-            <div class="panel-title">🎁 Apoio de Presentes</div>
+        <!-- PAINEL CENTRAL: ARENA DE COMBATE -->
+        <div class="arena-container">
+            
+            <!-- HUD DE COMBATE -->
+            <div class="match-header">
+                <div class="timer-display" id="matchTimer">60s</div>
+                
+                <!-- FIGHTER A -->
+                <div class="fighter-hud" id="hudFighterA">
+                    <div class="hud-avatar" id="avatarA">⚔️</div>
+                    <div class="hud-details">
+                        <div class="hud-name" id="nameA">Aguardando...</div>
+                        <div class="hp-bar-outer">
+                            <div class="hp-bar-inner" id="hpBarA" style="width: 100%;"></div>
+                            <div class="hp-text" id="hpTextA">100 / 100</div>
+                        </div>
+                    </div>
+                </div>
 
-            <!-- SUPPORT FIGHTER A -->
-            <div class="gift-box">
-                <div class="gift-fighter-title" id="giftTitleA">Apoiar Lutador A</div>
-                <div class="gift-buttons">
-                    <button class="btn-gift" onclick="game.sendGift('A', 10)" disabled>🎁 +10 HP</button>
-                    <button class="btn-gift" onclick="game.sendGift('A', 50)" disabled>🎁 +50 HP</button>
-                    <button class="btn-gift" onclick="game.sendGift('A', 100)" disabled>✨ +100 HP</button>
-                    <button class="btn-gift" onclick="game.sendGift('A', 500)" disabled>🔥 +500 HP</button>
+                <div class="vs-badge">VS</div>
+
+                <!-- FIGHTER B -->
+                <div class="fighter-hud right" id="hudFighterB">
+                    <div class="hud-avatar" id="avatarB">🛡️</div>
+                    <div class="hud-details">
+                        <div class="hud-name" id="nameB">Aguardando...</div>
+                        <div class="hp-bar-outer">
+                            <div class="hp-bar-inner" id="hpBarB" style="width: 100%;"></div>
+                            <div class="hp-text" id="hpTextB">100 / 100</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- SUPPORT FIGHTER B -->
-            <div class="gift-box">
-                <div class="gift-fighter-title" id="giftTitleB">Apoiar Lutador B</div>
-                <div class="gift-buttons">
-                    <button class="btn-gift" onclick="game.sendGift('B', 10)" disabled>🎁 +10 HP</button>
-                    <button class="btn-gift" onclick="game.sendGift('B', 50)" disabled>🎁 +50 HP</button>
-                    <button class="btn-gift" onclick="game.sendGift('B', 100)" disabled>✨ +100 HP</button>
-                    <button class="btn-gift" onclick="game.sendGift('B', 500)" disabled>🔥 +500 HP</button>
-                </div>
+            <!-- CANVAS DA ARENA -->
+            <div class="canvas-wrapper">
+                <div class="frenzy-banner" id="frenzyBanner">🔥 FRENESI ATIVADO! 🔥</div>
+                <canvas id="combatCanvas"></canvas>
             </div>
 
-            <!-- QUEUE INFO -->
-            <div class="queue-box">
-                <div class="queue-title">⏳ Fila de Espera (+20)</div>
-                <div id="queueList" style="color: var(--text-muted);">Nenhum jogador na fila.</div>
+            <!-- LOG DE EVENTOS DE COMBATE -->
+            <div class="combat-log-container">
+                <div class="log-header">⚡ Eventos em Tempo Real</div>
+                <div class="log-messages" id="logMessages">
+                    <div class="log-entry">Aguardando início dos confrontos...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAINEL DIREITO: SIMULADOR DE PRESENTES -->
+        <div class="panel">
+            <div class="panel-header">
+                <span>🎁 Enviar Presente</span>
+            </div>
+            <div class="gift-simulator">
+                <div class="gift-target-selector">
+                    <button class="target-btn selected" id="targetABtn">Lutador A</button>
+                    <button class="target-btn" id="targetBBtn">Lutador B</button>
+                </div>
+                
+                <div class="gift-grid">
+                    <div class="gift-card" onclick="sendGift(1)">
+                        <span class="gift-icon">🪙</span>
+                        <span class="gift-val">1 Moeda</span>
+                        <span class="gift-desc">+5 HP Cura Mínima</span>
+                    </div>
+
+                    <div class="gift-card" onclick="sendGift(100)">
+                        <span class="gift-icon">🌹</span>
+                        <span class="gift-val">100</span>
+                        <span class="gift-desc">+20 HP | +10% Força</span>
+                    </div>
+
+                    <div class="gift-card" onclick="sendGift(500)">
+                        <span class="gift-icon">🍩</span>
+                        <span class="gift-val">500</span>
+                        <span class="gift-desc">+50 HP | +15% Força | +10% Vel</span>
+                    </div>
+
+                    <div class="gift-card" onclick="sendGift(1000)">
+                        <span class="gift-icon">💎</span>
+                        <span class="gift-val">1.000</span>
+                        <span class="gift-desc">+120 HP | +25% Força | +20% Vel</span>
+                    </div>
+
+                    <div class="gift-card" onclick="sendGift(5000)">
+                        <span class="gift-icon">🚀</span>
+                        <span class="gift-val">5.000</span>
+                        <span class="gift-desc">+300 HP | +40% Força | +35% Vel</span>
+                    </div>
+
+                    <div class="gift-card" onclick="sendGift(10000)">
+                        <span class="gift-icon">🏰</span>
+                        <span class="gift-val">10.000</span>
+                        <span class="gift-desc">+600 HP | +70% Força | +60% Vel</span>
+                    </div>
+
+                    <div class="gift-card divine" onclick="sendGift(49999)">
+                        <span class="gift-icon">👑</span>
+                        <span class="gift-val">49.999 — PODER DIVINO</span>
+                        <span class="gift-desc">CURA TOTAL + BÔNUS DIVINO EXTREMO DE ATRIBUTOS</span>
+                    </div>
+                </div>
             </div>
         </div>
 
     </div>
 
-    <!-- JAVASCRIPT GAME ENGINE -->
+    <!-- OVERLAY CAMPEÃO DA LWAR -->
+    <div class="champion-overlay" id="championOverlay">
+        <div class="champion-card">
+            <div class="champion-trophy">🏆</div>
+            <div class="champion-title">CAMPEÃO DA LWAR</div>
+            <div class="champion-name" id="championName">Player Name</div>
+            <button class="btn btn-primary" style="margin: 0 auto;" onclick="closeChampionOverlay()">Continuar</button>
+        </div>
+    </div>
+
+    <!-- SCRIPT DO MOTOR V1.6 -->
     <script>
-        /* --- GAME DATA CONFIGURATION --- */
+        /* ==========================================================================
+           1. CONFIGURAÇÕES DE CLASSES E ESPECIFICAÇÕES
+           ========================================================================== */
         const CLASSES = {
-            GUERREIRO: { name: 'Guerreiro', icon: '⚔️', color: '#e74c3c', bonusAtk: 5, bonusDef: 5, bonusSpd: 0 },
-            ASSASSINO: { name: 'Assassino', icon: '🗡️', color: '#9b59b6', bonusAtk: 12, bonusDef: 0, bonusSpd: 8 },
-            MAGO:      { name: 'Mago',      icon: '🔮', color: '#3498db', bonusAtk: 15, bonusDef: 2, bonusSpd: 2 },
-            TANQUE:    { name: 'Tanque',    icon: '🛡️', color: '#f1c40f', bonusAtk: 2,  bonusDef: 12, bonusSpd: -2 },
-            NINJA:     { name: 'Ninja',     icon: '🥷', color: '#1abc9c', bonusAtk: 8,  bonusDef: 2, bonusSpd: 10 }
+            GUERREIRO: {
+                name: 'Guerreiro',
+                icon: '⚔️',
+                color: '#3a86ff',
+                baseHp: 120,
+                baseStr: 18,
+                baseDef: 12,
+                baseSpd: 10,
+                attackRange: 55,
+                critChance: 0.15,
+                heavyChance: 0.20,
+                dodgeChance: 0.08,
+                blockChance: 0.20,
+                maxCombo: 3
+            },
+            ASSASSINO: {
+                name: 'Assassino',
+                icon: '🗡️',
+                color: '#8338ec',
+                baseHp: 90,
+                baseStr: 22,
+                baseDef: 6,
+                baseSpd: 18,
+                attackRange: 45,
+                critChance: 0.35,
+                heavyChance: 0.15,
+                dodgeChance: 0.25,
+                blockChance: 0.05,
+                maxCombo: 5
+            },
+            MAGO: {
+                name: 'Mago',
+                icon: '🔮',
+                color: '#ff006e',
+                baseHp: 85,
+                baseStr: 25,
+                baseDef: 5,
+                baseSpd: 9,
+                attackRange: 220, // Ataque à distância
+                critChance: 0.25,
+                heavyChance: 0.30,
+                dodgeChance: 0.10,
+                blockChance: 0.05,
+                maxCombo: 2
+            },
+            TANQUE: {
+                name: 'Tanque',
+                icon: '🛡️',
+                color: '#ffbe0b',
+                baseHp: 160,
+                baseStr: 14,
+                baseDef: 20,
+                baseSpd: 6,
+                attackRange: 60,
+                critChance: 0.05,
+                heavyChance: 0.35,
+                dodgeChance: 0.02,
+                blockChance: 0.40,
+                maxCombo: 2
+            },
+            NINJA: {
+                name: 'Ninja',
+                icon: '🥷',
+                color: '#00f0ff',
+                baseHp: 95,
+                baseStr: 17,
+                baseDef: 8,
+                baseSpd: 20,
+                attackRange: 50,
+                critChance: 0.25,
+                heavyChance: 0.10,
+                dodgeChance: 0.30,
+                blockChance: 0.10,
+                maxCombo: 6
+            }
         };
 
-        const RANKS = [
-            { name: 'Iniciante', minPoints: 0 },
-            { name: 'Aprendiz', minPoints: 100 },
-            { name: 'Avançado', minPoints: 300 },
-            { name: 'Mestre', minPoints: 600 },
-            { name: 'Lenda', minPoints: 1000 }
-        ];
+        const GIFT_TIERS = {
+            1: { hp: 5, strP: 0, spdP: 0, defP: 0, label: 'Pequena Cura' },
+            100: { hp: 20, strP: 0.10, spdP: 0, defP: 0, label: 'Força Leve' },
+            500: { hp: 50, strP: 0.15, spdP: 0.10, defP: 0, label: 'Aumento de Ritmo' },
+            1000: { hp: 120, strP: 0.25, spdP: 0.20, defP: 0.15, label: 'Super Carga' },
+            5000: { hp: 300, strP: 0.40, spdP: 0.35, defP: 0.30, label: 'Impulso Titânico' },
+            10000: { hp: 600, strP: 0.70, spdP: 0.60, defP: 0.50, label: 'Frenesi Lendário' },
+            49999: { hp: 9999, strP: 1.50, spdP: 1.00, defP: 1.00, divine: true, label: '👑 PODER DIVINO' }
+        };
 
-        const NICKNAMES = [
-            'Aragorn', 'Legolas', 'Gimli', 'Gandalf', 'Thorin', 'Lancelot', 'Arthur',
-            'Merlin', 'Ragnar', 'Bjorn', 'Kratos', 'Geralt', 'Yennefer', 'Ciri',
-            'Ezio', 'Altair', 'Sylvanas', 'Illidan', 'Arthas', 'Jaina', 'Zelda',
-            'Link', 'Cloud', 'Sephiroth', 'Dante'
-        ];
+        /* ==========================================================================
+           2. ESTADOS E SISTEMA DE PARTICULAS DO CANVAS
+           ========================================================================== */
+        const STATES = {
+            IDLE: 'IDLE',
+            MOVING: 'MOVING',
+            ATTACKING: 'ATTACKING',
+            DEFENDING: 'DEFENDING',
+            DODGING: 'DODGING',
+            HIT: 'HIT',
+            DEFEATED: 'DEFEATED'
+        };
 
-        /* --- PLAYER MODEL --- */
-        class Player {
-            constructor(id, name, className) {
-                this.id = id;
-                this.name = name;
-                this.className = className;
-                this.classData = CLASSES[className];
-                
-                // Base attributes
-                this.rawScore = Math.floor(Math.random() * 800) + 100;
-                this.maxHp = 100 + Math.floor(this.rawScore / 10);
-                this.hp = this.maxHp;
-                this.strength = 15 + Math.floor(Math.random() * 10) + this.classData.bonusAtk;
-                this.defense = 5 + Math.floor(Math.random() * 8) + this.classData.bonusDef;
-                this.speed = 5 + Math.floor(Math.random() * 8) + this.classData.bonusSpd;
-                this.eliminated = false;
-            }
-
-            getRank() {
-                let currentRank = RANKS[0].name;
-                for (let r of RANKS) {
-                    if (this.rawScore >= r.minPoints) currentRank = r.name;
-                }
-                return currentRank;
-            }
-
-            resetHp() {
-                this.hp = this.maxHp;
-            }
-        }
-
-        /* --- CANVAS RENDERER & ANIMATION --- */
-        class ArenaCanvas {
-            constructor(canvasId) {
-                this.canvas = document.getElementById(canvasId);
-                this.ctx = this.canvas.getContext('2d');
-                this.particles = [];
-                this.floatingTexts = [];
-                this.fighterAAnim = { offsetPos: 0, state: 'idle', flashRed: 0 };
-                this.fighterBAnim = { offsetPos: 0, state: 'idle', flashRed: 0 };
-            }
-
-            init() {
-                this.loop();
-            }
-
-            loop() {
-                this.update();
-                this.render();
-                requestAnimationFrame(() => this.loop());
+        class Particle {
+            constructor(x, y, color, speedX, speedY, size, life) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.speedX = speedX;
+                this.speedY = speedY;
+                this.size = size;
+                this.maxLife = life;
+                this.life = life;
             }
 
             update() {
-                // Update particles
-                for (let i = this.particles.length - 1; i >= 0; i--) {
-                    let p = this.particles[i];
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    p.alpha -= p.decay;
-                    if (p.alpha <= 0) this.particles.splice(i, 1);
-                }
-
-                // Update floating texts
-                for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
-                    let ft = this.floatingTexts[i];
-                    ft.y -= 1;
-                    ft.alpha -= 0.02;
-                    if (ft.alpha <= 0) this.floatingTexts.splice(i, 1);
-                }
-
-                // Update attack animations smooth return
-                if (this.fighterAAnim.offsetPos > 0) this.fighterAAnim.offsetPos -= 8;
-                if (this.fighterBAnim.offsetPos > 0) this.fighterBAnim.offsetPos -= 8;
-                if (this.fighterAAnim.flashRed > 0) this.fighterAAnim.flashRed--;
-                if (this.fighterBAnim.flashRed > 0) this.fighterBAnim.flashRed--;
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.life--;
             }
 
-            triggerAttack(side) {
-                if (side === 'A') this.fighterAAnim.offsetPos = 60;
-                else this.fighterBAnim.offsetPos = 60;
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class FloatingText {
+            constructor(x, y, text, color, fontSize = 16, isCrit = false) {
+                this.x = x;
+                this.y = y;
+                this.text = text;
+                this.color = color;
+                this.fontSize = fontSize;
+                this.isCrit = isCrit;
+                this.life = 45;
+                this.maxLife = 45;
+                this.velocityY = -1.5;
             }
 
-            triggerHit(side) {
-                if (side === 'A') this.fighterAAnim.flashRed = 10;
-                else this.fighterBAnim.flashRed = 10;
+            update() {
+                this.y += this.velocityY;
+                this.life--;
             }
 
-            addFloatingText(x, y, text, color) {
-                this.floatingTexts.push({ x, y, text, color, alpha: 1.0 });
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+                ctx.fillStyle = this.color;
+                ctx.font = `900 ${this.fontSize}px 'Segoe UI', sans-serif`;
+                ctx.shadowColor = '#000';
+                ctx.shadowBlur = 4;
+                ctx.textAlign = 'center';
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        /* ==========================================================================
+           3. CLASSE DO LUTADOR VISUAL E ATRIBUTOS
+           ========================================================================== */
+        class Fighter {
+            constructor(playerData, isLeft, canvasWidth, canvasHeight) {
+                this.data = playerData;
+                this.classSpec = CLASSES[playerData.classType];
+                this.isLeft = isLeft;
+                this.canvasWidth = canvasWidth;
+                this.canvasHeight = canvasHeight;
+
+                // Atributos de Combate Reais
+                this.maxHp = Math.round(this.classSpec.baseHp + (playerData.rank * 2));
+                this.hp = this.maxHp;
+                this.strength = Math.round(this.classSpec.baseStr + (playerData.rank * 0.8));
+                this.defense = Math.round(this.classSpec.baseDef + (playerData.rank * 0.5));
+                this.speed = Math.round(this.classSpec.baseSpd + (playerData.rank * 0.5));
+
+                // Bônus Temporários de Presentes (Resetados por Luta)
+                this.tempBuffs = { strP: 0, spdP: 0, defP: 0, divine: false };
+
+                // Posições e Física
+                this.groundY = canvasHeight - 60;
+                this.homeX = isLeft ? 120 : canvasWidth - 120;
+                this.x = this.homeX;
+                this.y = this.groundY;
+                this.facing = isLeft ? 1 : -1;
+
+                // Estado Visual
+                this.state = STATES.IDLE;
+                this.stateTimer = 0;
+                this.animFrame = 0;
+                this.comboCount = 0;
+
+                // Cooldowns de Ataque
+                this.attackCooldown = 0;
+
+                // Efeitos
+                this.auraColor = null;
             }
 
-            addParticles(x, y, color, count = 8) {
-                for (let i = 0; i < count; i++) {
-                    this.particles.push({
-                        x, y,
-                        vx: (Math.random() - 0.5) * 6,
-                        vy: (Math.random() - 0.5) * 6 - 2,
-                        alpha: 1.0,
-                        decay: 0.02 + Math.random() * 0.03,
-                        color
-                    });
-                }
+            // Obter Atributos Efetivos com Bônus Temporários
+            getEffectiveStrength() {
+                return Math.round(this.strength * (1 + this.tempBuffs.strP));
             }
 
-            render() {
-                const ctx = this.ctx;
-                const w = this.canvas.width;
-                const h = this.canvas.height;
+            getEffectiveSpeed() {
+                return Math.round(this.speed * (1 + this.tempBuffs.spdP));
+            }
 
-                // 1. Draw Arena Floor & Background
-                ctx.fillStyle = '#121110';
-                ctx.fillRect(0, 0, w, h);
+            getEffectiveDefense() {
+                return Math.round(this.defense * (1 + this.tempBuffs.defP));
+            }
 
-                // Stone Floor Tiles Pattern
-                ctx.strokeStyle = '#221c17';
-                ctx.lineWidth = 2;
-                for (let x = 0; x < w; x += 50) {
-                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-                }
-                for (let y = 0; y < h; y += 40) {
-                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-                }
+            resetTempBuffs() {
+                this.tempBuffs = { strP: 0, spdP: 0, defP: 0, divine: false };
+                this.hp = Math.min(this.hp, this.maxHp);
+            }
 
-                // Arena Stage Platform
-                ctx.fillStyle = '#1c1814';
-                ctx.fillRect(60, h - 140, w - 120, 100);
-                ctx.strokeStyle = '#3a3228';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(60, h - 140, w - 120, 100);
+            update() {
+                this.animFrame++;
+                if (this.attackCooldown > 0) this.attackCooldown--;
 
-                // Pillars & Torches
-                this.drawPillar(ctx, 80, h - 220);
-                this.drawPillar(ctx, w - 120, h - 220);
-
-                // Ambient Torch Particles
-                if (Math.random() < 0.4) {
-                    this.addParticles(90, h - 210, '#f39c12', 1);
-                    this.addParticles(w - 110, h - 210, '#f39c12', 1);
-                }
-
-                // Frenzy Aura
-                if (game && game.battleManager && game.battleManager.isFrenzy) {
-                    ctx.fillStyle = 'rgba(231, 76, 60, 0.08)';
-                    ctx.fillRect(0, 0, w, h);
-                    if (Math.random() < 0.3) {
-                        this.addParticles(Math.random() * w, h - 50, '#e74c3c', 2);
+                // Transições de Estado
+                if (this.stateTimer > 0) {
+                    this.stateTimer--;
+                    if (this.stateTimer === 0 && this.state !== STATES.DEFEATED) {
+                        this.state = STATES.IDLE;
                     }
                 }
 
-                // 2. Draw Stickmen Fighters
-                if (game && game.battleManager && game.battleManager.activeMatch) {
-                    const match = game.battleManager.activeMatch;
-
-                    // Fighter A (Left side)
-                    const posAX = 240 + this.fighterAAnim.offsetPos;
-                    const posAY = h - 130;
-                    this.drawStickman(posAX, posAY, match.fighterA, true, this.fighterAAnim.flashRed > 0);
-
-                    // Fighter B (Right side)
-                    const posBX = w - 240 - this.fighterBAnim.offsetPos;
-                    const posBY = h - 130;
-                    this.drawStickman(posBX, posBY, match.fighterB, false, this.fighterBAnim.flashRed > 0);
-                }
-
-                // 3. Render Particles
-                for (let p of this.particles) {
-                    ctx.save();
-                    ctx.globalAlpha = p.alpha;
-                    ctx.fillStyle = p.color;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                }
-
-                // 4. Render Floating Text (Damage / Gifts)
-                for (let ft of this.floatingTexts) {
-                    ctx.save();
-                    ctx.globalAlpha = ft.alpha;
-                    ctx.font = 'bold 20px Georgia';
-                    ctx.fillStyle = ft.color;
-                    ctx.shadowColor = '#000';
-                    ctx.shadowBlur = 4;
-                    ctx.fillText(ft.text, ft.x, ft.y);
-                    ctx.restore();
+                // Retorno à posição inicial se IDLE
+                if (this.state === STATES.IDLE && Math.abs(this.x - this.homeX) > 5) {
+                    this.x += (this.homeX - this.x) * 0.1;
                 }
             }
 
-            drawPillar(ctx, x, y) {
-                ctx.fillStyle = '#2a221b';
-                ctx.fillRect(x, y, 20, 120);
-                ctx.strokeStyle = '#4a3b2c';
-                ctx.strokeRect(x, y, 20, 120);
-                // Torch flame glow
-                ctx.fillStyle = '#f1c40f';
-                ctx.beginPath();
-                ctx.arc(x + 10, y + 10, 8, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            drawStickman(x, y, player, isFacingRight, isHit) {
-                const ctx = this.ctx;
+            draw(ctx, particles) {
                 ctx.save();
+                ctx.translate(this.x, this.y);
 
-                // Stickman Base Colors & Flashing Red on Hit
-                const bodyColor = isHit ? '#e74c3c' : player.classData.color;
-                ctx.strokeStyle = bodyColor;
-                ctx.fillStyle = bodyColor;
+                // Desenhar Aura Divina ou Presentes
+                if (this.tempBuffs.divine) {
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(255, 200, 0, 0.6)';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(0, -40, 45 + Math.sin(this.animFrame * 0.2) * 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    if (Math.random() < 0.4) {
+                        particles.push(new Particle(
+                            this.x + (Math.random() - 0.5) * 60,
+                            this.y - Math.random() * 80,
+                            '#ffc800', 0, -1, 3, 30
+                        ));
+                    }
+                }
+
+                // Efeito de Transparência na Esquiva (Shadow Dash)
+                if (this.state === STATES.DODGING) {
+                    ctx.globalAlpha = 0.4;
+                }
+
+                // Efeito de Flash ao Levar Dano
+                if (this.state === STATES.HIT) {
+                    ctx.strokeStyle = '#ff2a5f';
+                } else {
+                    ctx.strokeStyle = this.classSpec.color;
+                }
+
                 ctx.lineWidth = 4;
                 ctx.lineCap = 'round';
 
-                const dir = isFacingRight ? 1 : -1;
+                // Pose de Respirar/Idle
+                const breathe = Math.sin(this.animFrame * 0.1) * 3;
 
-                // --- STICKMAN DRAWING ---
-                // Head
+                // 1. CABEÇA
                 ctx.beginPath();
-                ctx.arc(x, y - 60, 14, 0, Math.PI * 2);
+                ctx.arc(0, -70 + breathe, 12, 0, Math.PI * 2);
                 ctx.stroke();
 
-                // Torso
+                // Ícone da Classe sobre a cabeça
+                ctx.font = '14px serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.classSpec.icon, 0, -90 + breathe);
+
+                // 2. TRONCO
                 ctx.beginPath();
-                ctx.moveTo(x, y - 46);
-                ctx.lineTo(x, y - 15);
+                ctx.moveTo(0, -58 + breathe);
+                ctx.lineTo(0, -25);
                 ctx.stroke();
 
-                // Arms (Posed for combat)
-                ctx.beginPath();
-                ctx.moveTo(x, y - 40);
-                ctx.lineTo(x + 15 * dir, y - 25);
-                ctx.lineTo(x + 25 * dir, y - 35);
-                ctx.stroke();
-
-                // Legs
-                ctx.beginPath();
-                ctx.moveTo(x, y - 15);
-                ctx.lineTo(x - 12 * dir, y);
-                ctx.moveTo(x, y - 15);
-                ctx.lineTo(x + 15 * dir, y);
-                ctx.stroke();
-
-                // Class Visual Weapon/Aura Weapon Representation
-                ctx.strokeStyle = player.classData.color;
-                ctx.fillStyle = player.classData.color;
-                ctx.lineWidth = 3;
-
-                switch(player.className) {
-                    case 'GUERREIRO': // Sword
-                        ctx.beginPath();
-                        ctx.moveTo(x + 22 * dir, y - 35);
-                        ctx.lineTo(x + 45 * dir, y - 50);
-                        ctx.stroke();
-                        break;
-                    case 'ASSASSINO': // Dual Daggers
-                        ctx.beginPath();
-                        ctx.moveTo(x + 22 * dir, y - 35);
-                        ctx.lineTo(x + 35 * dir, y - 40);
-                        ctx.stroke();
-                        break;
-                    case 'MAGO': // Glowing Magic Sphere
-                        ctx.beginPath();
-                        ctx.arc(x + 30 * dir, y - 35, 8, 0, Math.PI * 2);
-                        ctx.fill();
-                        break;
-                    case 'TANQUE': // Shield
-                        ctx.fillRect(x + 20 * dir, y - 45, 8, 25);
-                        break;
-                    case 'NINJA': // Shadow Dagger / Blur
-                        ctx.beginPath();
-                        ctx.moveTo(x + 22 * dir, y - 35);
-                        ctx.lineTo(x + 38 * dir, y - 35);
-                        ctx.stroke();
-                        break;
+                // 3. PERNAS
+                if (this.state === STATES.DEFEATED) {
+                    // Caído no chão
+                    ctx.beginPath();
+                    ctx.moveTo(0, -25); ctx.lineTo(-20, 0);
+                    ctx.moveTo(0, -25); ctx.lineTo(20, 0);
+                    ctx.stroke();
+                } else if (this.state === STATES.MOVING) {
+                    const legAngle = Math.sin(this.animFrame * 0.3) * 15;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -25); ctx.lineTo(-10 + legAngle, 0);
+                    ctx.moveTo(0, -25); ctx.lineTo(10 - legAngle, 0);
+                    ctx.stroke();
+                } else {
+                    // Base Normal
+                    ctx.beginPath();
+                    ctx.moveTo(0, -25); ctx.lineTo(-12 * this.facing, 0);
+                    ctx.moveTo(0, -25); ctx.lineTo(12 * this.facing, 0);
+                    ctx.stroke();
                 }
 
-                // --- OVERHEAD HUD (Name & HP Bar) ---
-                const hudY = y - 85;
+                // 4. BRAÇOS / ARMAS
+                if (this.state === STATES.ATTACKING) {
+                    // Golpe Estendido
+                    ctx.beginPath();
+                    ctx.moveTo(0, -50 + breathe);
+                    ctx.lineTo(25 * this.facing, -45);
+                    ctx.stroke();
 
-                // Name & Rank Tag
-                ctx.font = 'bold 12px sans-serif';
-                ctx.fillStyle = '#fff0a8';
-                ctx.textAlign = 'center';
-                ctx.fillText(`${player.classData.icon} @${player.name}`, x, hudY - 18);
+                    // Arma Visual/Impacto
+                    if (this.data.classType === 'MAGO') {
+                        ctx.fillStyle = '#ff006e';
+                        ctx.beginPath();
+                        ctx.arc(35 * this.facing, -45, 8, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                } else if (this.state === STATES.DEFENDING) {
+                    // Postura de Defesa Guardada
+                    ctx.beginPath();
+                    ctx.moveTo(0, -50 + breathe);
+                    ctx.lineTo(10 * this.facing, -60);
+                    ctx.stroke();
 
-                // HP Bar Background
-                const barWidth = 70;
-                const barHeight = 8;
-                ctx.fillStyle = '#333';
-                ctx.fillRect(x - barWidth / 2, hudY, barWidth, barHeight);
-
-                // HP Bar Fill
-                const hpPercent = Math.max(0, player.hp / player.maxHp);
-                ctx.fillStyle = hpPercent > 0.5 ? '#2ecc71' : hpPercent > 0.25 ? '#f1c40f' : '#e74c3c';
-                ctx.fillRect(x - barWidth / 2, hudY, barWidth * hpPercent, barHeight);
-
-                // HP Bar Border
-                ctx.strokeStyle = '#000';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(x - barWidth / 2, hudY, barWidth, barHeight);
-
-                // Text HP
-                ctx.font = '10px sans-serif';
-                ctx.fillStyle = '#fff';
-                ctx.fillText(`${player.hp}/${player.maxHp}`, x, hudY + 18);
+                    // Escudo Visual
+                    ctx.strokeStyle = '#ffc800';
+                    ctx.beginPath();
+                    ctx.arc(12 * this.facing, -50, 16, -Math.PI / 2, Math.PI / 2);
+                    ctx.stroke();
+                } else {
+                    // Braços Padrão
+                    ctx.beginPath();
+                    ctx.moveTo(0, -50 + breathe);
+                    ctx.lineTo(12 * this.facing, -35);
+                    ctx.stroke();
+                }
 
                 ctx.restore();
             }
         }
 
-        /* --- BATTLE MANAGER --- */
-        class BattleManager {
-            constructor(game) {
-                this.game = game;
-                this.activeMatch = null;
-                this.timer = 60;
+        /* ==========================================================================
+           4. MOTOR DE COMBATE REAL (COMBAT ENGINE V1.6)
+           ========================================================================== */
+        class CombatEngine {
+            constructor(canvas, logContainer) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.logContainer = logContainer;
+
+                this.fighterA = null;
+                this.fighterB = null;
+                this.particles = [];
+                this.floatingTexts = [];
+
+                this.matchTimer = 60;
                 this.timerInterval = null;
-                this.attackIntervalA = null;
-                this.attackIntervalB = null;
                 this.isFrenzy = false;
+                this.isRunning = false;
+
+                // Hitstop (Pausa de impacto estilo Street Fighter)
+                this.hitstopFrames = 0;
+
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
             }
 
-            startMatch(fighterA, fighterB, phaseTitle) {
-                this.stopMatch();
-                this.activeMatch = { fighterA, fighterB, phaseTitle };
-                this.timer = 60;
+            resizeCanvas() {
+                const rect = this.canvas.parentElement.getBoundingClientRect();
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+            }
+
+            initMatch(playerA, playerB, onComplete) {
+                this.stop();
+
+                this.fighterA = new Fighter(playerA, true, this.canvas.width, this.canvas.height);
+                this.fighterB = new Fighter(playerB, false, this.canvas.width, this.canvas.height);
+                
+                this.particles = [];
+                this.floatingTexts = [];
+                this.matchTimer = 60;
                 this.isFrenzy = false;
+                this.onComplete = onComplete;
+                this.isRunning = true;
 
-                fighterA.resetHp();
-                fighterB.resetHp();
+                document.getElementById('frenzyBanner').classList.remove('show');
+                document.getElementById('matchTimer').classList.remove('frenzy');
 
-                document.getElementById('phaseBanner').innerText = phaseTitle;
-                document.getElementById('canvasWrapper').classList.remove('frenzy-mode');
+                this.log(`⚔️ INÍCIO DO CONFRONTO: ${playerA.name} VS ${playerB.name}!`);
 
-                this.game.ui.updateMatchHud(fighterA, fighterB);
-                this.game.ui.toggleGiftButtons(true);
-                this.game.logEvent(`⚔️ INÍCIO DAFUTURA BATALHA: @${fighterA.name} VS @${fighterB.name}!`, 'log-system');
+                // Timer da Partida
+                this.timerInterval = setInterval(() => {
+                    if (this.matchTimer > 0) {
+                        this.matchTimer--;
+                        document.getElementById('matchTimer').innerText = `${this.matchTimer}s`;
 
-                // Timer tick every 1 sec
-                this.timerInterval = setInterval(() => this.tickTimer(), 1000);
-
-                // Attack timers based on Speed Stat
-                const speedDelayA = Math.max(600, 1600 - fighterA.speed * 80);
-                const speedDelayB = Math.max(600, 1600 - fighterB.speed * 80);
-
-                this.attackIntervalA = setInterval(() => this.executeAttack('A'), speedDelayA);
-                this.attackIntervalB = setInterval(() => this.executeAttack('B'), speedDelayB);
-            }
-
-            tickTimer() {
-                this.timer--;
-                this.game.ui.updateTimerDisplay(this.timer, this.isFrenzy);
-
-                if (this.timer === 10 && !this.isFrenzy) {
-                    this.isFrenzy = true;
-                    document.getElementById('canvasWrapper').classList.add('frenzy-mode');
-                    this.game.logEvent('🔥 FRENESI ATIVADO! AUMENTO DE VELOCIDADE E DANO!', 'log-frenzy');
-                }
-
-                if (this.timer <= 0) {
-                    this.endMatch('TIMEOUT');
-                }
-            }
-
-            executeAttack(attackerSide) {
-                if (!this.activeMatch) return;
-
-                const attacker = attackerSide === 'A' ? this.activeMatch.fighterA : this.activeMatch.fighterB;
-                const defender = attackerSide === 'A' ? this.activeMatch.fighterB : this.activeMatch.fighterA;
-                const defenderSide = attackerSide === 'A' ? 'B' : 'A';
-
-                // Trigger Canvas Animations
-                this.game.canvasRenderer.triggerAttack(attackerSide);
-                this.game.canvasRenderer.triggerHit(defenderSide);
-
-                // Damage Calculation
-                let damage = Math.max(3, attacker.strength - Math.floor(defender.defense / 2) + Math.floor(Math.random() * 5));
-                if (this.isFrenzy) damage = Math.floor(damage * 1.5);
-
-                defender.hp = Math.max(0, defender.hp - damage);
-
-                // Floating Text & Particles on Canvas
-                const targetX = defenderSide === 'A' ? 240 : 560;
-                this.game.canvasRenderer.addFloatingText(targetX, 280, `-${damage}`, '#e74c3c');
-                this.game.canvasRenderer.addParticles(targetX, 300, attacker.classData.color, 6);
-
-                this.game.logEvent(`⚔️ @${attacker.name} atacou @${defender.name}! 💥 ${damage} de dano!`, 'log-attack');
-                this.game.ui.updateMatchHud(this.activeMatch.fighterA, this.activeMatch.fighterB);
-
-                if (defender.hp <= 0) {
-                    this.endMatch('KO', attacker, defender);
-                }
-            }
-
-            endMatch(reason, winner = null, loser = null) {
-                this.stopMatch();
-
-                if (reason === 'TIMEOUT') {
-                    if (this.activeMatch.fighterA.hp >= this.activeMatch.fighterB.hp) {
-                        winner = this.activeMatch.fighterA;
-                        loser = this.activeMatch.fighterB;
+                        if (this.matchTimer <= 10 && !this.isFrenzy) {
+                            this.triggerFrenzy();
+                        }
                     } else {
-                        winner = this.activeMatch.fighterB;
-                        loser = this.activeMatch.fighterA;
+                        this.endMatchByTime();
                     }
-                }
+                }, 1000);
 
-                loser.eliminated = true;
-                this.game.logEvent(`🏆 VENCEDOR DA RODADA: @${winner.name}! (@${loser.name} ELIMINADO)`, 'log-gift');
-                this.game.ui.toggleGiftButtons(false);
-
-                // Progress Tournament Ladder
-                setTimeout(() => {
-                    this.game.tournamentManager.onMatchEnd(winner);
-                }, 2500);
+                this.loop();
             }
 
-            stopMatch() {
-                clearInterval(this.timerInterval);
-                clearInterval(this.attackIntervalA);
-                clearInterval(this.attackIntervalB);
-            }
-        }
-
-        /* --- TOURNAMENT MANAGER (STEP-BY-STEP LADDER) --- */
-        class TournamentManager {
-            constructor(game) {
-                this.game = game;
-                this.active = false;
-                this.currentLadderIndex = 19; // Starts at #20 vs #19 (Index 19 vs Index 18)
-                this.currentChampion = null;
+            triggerFrenzy() {
+                this.isFrenzy = true;
+                document.getElementById('frenzyBanner').classList.add('show');
+                document.getElementById('matchTimer').classList.add('frenzy');
+                this.log('🔥 FRENESI ATIVADO! Ataques acelerados e dano aumentado!', 'frenzy');
             }
 
-            start() {
-                if (this.game.players.length < 20) return;
-
-                this.active = true;
-                this.game.isFrozen = true;
-                document.getElementById('frozenTag').style.display = 'inline-block';
-                this.game.ui.renderRanking();
-
-                // Sort initial Top 20
-                this.game.players.sort((a, b) => b.rawScore - a.rawScore);
-
-                // Setup ladder: Start with 19th (#20) vs 18th (#19)
-                const fighterB = this.game.players[19]; // Rank #20
-                const fighterA = this.game.players[18]; // Rank #19
-
-                this.currentChampion = null;
-                this.currentLadderIndex = 17; // Next challenger will be Rank #18 (index 17)
-
-                this.game.battleManager.startMatch(fighterA, fighterB, "⚔️ PRIMEIRO CONFRONTO: #19 VS #20 ⚔️");
+            stop() {
+                this.isRunning = false;
+                if (this.timerInterval) clearInterval(this.timerInterval);
             }
 
-            onMatchEnd(winner) {
-                if (this.currentLadderIndex < 0) {
-                    // FINAL CHAMPION DECLARED
-                    this.game.logEvent(`👑👑 GRANDE CAMPEÃO DA LWAR ARENA: @${winner.name}! 👑👑`, 'log-frenzy');
-                    document.getElementById('phaseBanner').innerText = `🏆 CAMPEÃO: @${winner.name} 🏆`;
-                    this.active = false;
+            log(msg, type = '') {
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                entry.innerText = msg;
+                this.logContainer.appendChild(entry);
+                this.logContainer.scrollTop = this.logContainer.scrollHeight;
+            }
+
+            // LOOP PRINCIPAL DE RENDERIZAÇÃO E FÍSICA (60 FPS)
+            loop() {
+                if (!this.isRunning) return;
+
+                // Tratar Hitstop
+                if (this.hitstopFrames > 0) {
+                    this.hitstopFrames--;
+                    requestAnimationFrame(() => this.loop());
                     return;
                 }
 
-                // Next Challenger from ranking
-                const nextChallenger = this.game.players[this.currentLadderIndex];
-                const rankNum = this.currentLadderIndex + 1;
+                this.updatePhysics();
+                this.render();
 
-                let title = `⚔️ ${rankNum}º COLOCADO DESAFIA O VENCEDOR ⚔️`;
-                if (this.currentLadderIndex === 0) {
-                    title = `👑 GRANDE FINAL: VENCEDOR VS #1 (@${nextChallenger.name}) 👑`;
+                requestAnimationFrame(() => this.loop());
+            }
+
+            updatePhysics() {
+                if (!this.fighterA || !this.fighterB) return;
+
+                this.fighterA.update();
+                this.fighterB.update();
+
+                // Atualizar Partículas e Textos
+                this.particles.forEach((p, index) => {
+                    p.update();
+                    if (p.life <= 0) this.particles.splice(index, 1);
+                });
+
+                this.floatingTexts.forEach((ft, index) => {
+                    ft.update();
+                    if (ft.life <= 0) this.floatingTexts.splice(index, 1);
+                });
+
+                // Lógica de Troca de Golpes e Distância
+                if (this.fighterA.hp > 0 && this.fighterB.hp > 0) {
+                    this.processCombatTurn(this.fighterA, this.fighterB);
+                    this.processCombatTurn(this.fighterB, this.fighterA);
+                }
+            }
+
+            processCombatTurn(attacker, defender) {
+                if (attacker.state !== STATES.IDLE || attacker.attackCooldown > 0) return;
+
+                // Calcular distância
+                const dist = Math.abs(attacker.x - defender.x);
+                const reqRange = attacker.classSpec.attackRange;
+
+                // Se longe, aproxima-se (Avançar sem atravessar)
+                if (dist > reqRange) {
+                    attacker.state = STATES.MOVING;
+                    const speed = (attacker.getEffectiveSpeed() * 0.25) * (this.isFrenzy ? 1.5 : 1.0);
+                    attacker.x += attacker.facing * speed;
+                    return;
                 }
 
-                this.currentLadderIndex--;
-                this.game.battleManager.startMatch(winner, nextChallenger, title);
+                // Executar Ataque
+                attacker.state = STATES.ATTACKING;
+                attacker.stateTimer = 18;
+                
+                // Cooldown baseado em Velocidade real
+                const spdFactor = Math.max(15, 55 - attacker.getEffectiveSpeed());
+                attacker.attackCooldown = Math.round(this.isFrenzy ? spdFactor * 0.5 : spdFactor);
+
+                // Lógica de Reação do Defensor
+                const dodgeRoll = Math.random();
+                const effDodge = defender.classSpec.dodgeChance + (defender.getEffectiveSpeed() * 0.005);
+
+                if (dodgeRoll < effDodge) {
+                    // ESQUIVA (MISS)
+                    defender.state = STATES.DODGING;
+                    defender.stateTimer = 15;
+                    defender.x -= defender.facing * 30; // Dash para trás
+                    this.floatingTexts.push(new FloatingText(defender.x, defender.y - 80, 'MISS!', '#00f0ff', 14));
+                    this.log(`💨 ${defender.data.name} esquivou do ataque de ${attacker.data.name}!`);
+                    return;
+                }
+
+                const blockRoll = Math.random();
+                const effBlock = defender.classSpec.blockChance;
+                let isBlocked = false;
+
+                if (blockRoll < effBlock) {
+                    // BLOQUEIO
+                    defender.state = STATES.DEFENDING;
+                    defender.stateTimer = 15;
+                    isBlocked = true;
+                    this.floatingTexts.push(new FloatingText(defender.x, defender.y - 80, '🛡️ BLOCK', '#ffc800', 14));
+                } else {
+                    defender.state = STATES.HIT;
+                    defender.stateTimer = 12;
+                    defender.x += attacker.facing * 8; // Recuo de Impacto
+                }
+
+                // CÁLCULO DE DANO REAL
+                const isCrit = Math.random() < attacker.classSpec.critChance;
+                const isHeavy = Math.random() < attacker.classSpec.heavyChance;
+
+                let baseDmg = attacker.getEffectiveStrength() * (isHeavy ? 1.6 : 1.0) * (isCrit ? 1.8 : 1.0);
+                if (this.isFrenzy) baseDmg *= 1.4;
+
+                // Redução de Defesa
+                let finalDmg = Math.max(3, Math.round(baseDmg - (defender.getEffectiveDefense() * 0.35)));
+                if (isBlocked) finalDmg = Math.max(1, Math.round(finalDmg * 0.3));
+
+                // Aplicação no HP
+                defender.hp = Math.max(0, defender.hp - finalDmg);
+
+                // Hitstop (Impact Pause)
+                this.hitstopFrames = isCrit ? 6 : 3;
+
+                // Efeitos Visuais de Impacto
+                this.createHitParticles(defender.x, defender.y - 45, isCrit ? '#ffc800' : '#ff2a5f');
+
+                // Floating Text
+                let textStr = `-${finalDmg}`;
+                let textColor = '#ffffff';
+                if (isCrit) { textStr = `💥 CRÍTICO! -${finalDmg}`; textColor = '#ffc800'; }
+                else if (isHeavy) { textStr = `🔨 PESADO -${finalDmg}`; textColor = '#ff5555'; }
+
+                this.floatingTexts.push(new FloatingText(defender.x, defender.y - 70, textStr, textColor, isCrit ? 20 : 15, isCrit));
+
+                // Registro no Log
+                if (isCrit) this.log(`💥 CRÍTICO! ${attacker.data.name} causou ${finalDmg} de dano em ${defender.data.name}!`, 'crit');
+                else if (isHeavy) this.log(`🔨 ATAQUE PESADO! ${attacker.data.name} acertou ${defender.data.name} (-${finalDmg} HP)!`, 'heavy');
+                else if (isBlocked) this.log(`🛡️ ${defender.data.name} bloqueou o ataque de ${attacker.data.name} (-${finalDmg} HP)`);
+                else this.log(`⚔️ ${attacker.data.name} atacou ${defender.data.name} (-${finalDmg} HP)`);
+
+                // Checagem de Morte
+                if (defender.hp <= 0) {
+                    defender.state = STATES.DEFEATED;
+                    this.stop();
+                    this.log(`☠️ ${defender.data.name} FOI DERROTADO!`);
+                    setTimeout(() => this.onComplete(attacker.data), 1500);
+                }
+            }
+
+            createHitParticles(x, y, color) {
+                for (let i = 0; i < 12; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 4 + 2;
+                    this.particles.push(new Particle(
+                        x, y, color,
+                        Math.cos(angle) * speed,
+                        Math.sin(angle) * speed,
+                        Math.random() * 3 + 1, 20
+                    ));
+                }
+            }
+
+            endMatchByTime() {
+                this.stop();
+                this.log('⏱️ FIM DO TEMPO! Decidindo vencedor por maior HP...');
+                const winner = this.fighterA.hp >= this.fighterB.hp ? this.fighterA.data : this.fighterB.data;
+                this.log(`🏆 Vencedor por HP: ${winner.name}`);
+                setTimeout(() => this.onComplete(winner), 1500);
+            }
+
+            render() {
+                // Limpar Canvas
+                this.ctx.fillStyle = '#080a0f';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Grid do Chão
+                this.ctx.strokeStyle = '#151a23';
+                this.ctx.lineWidth = 1;
+                const groundY = this.canvas.height - 60;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, groundY);
+                this.ctx.lineTo(this.canvas.width, groundY);
+                this.ctx.stroke();
+
+                // Desenhar Lutadores
+                if (this.fighterA) this.fighterA.draw(this.ctx, this.particles);
+                if (this.fighterB) this.fighterB.draw(this.ctx, this.particles);
+
+                // Desenhar Partículas e Textos Flutuantes
+                this.particles.forEach(p => p.draw(this.ctx));
+                this.floatingTexts.forEach(ft => ft.draw(this.ctx));
+
+                // Atualizar HUD
+                this.updateHUD();
+            }
+
+            updateHUD() {
+                if (!this.fighterA || !this.fighterB) return;
+
+                // Lutador A
+                document.getElementById('nameA').innerText = this.fighterA.data.name;
+                document.getElementById('avatarA').innerText = this.fighterA.classSpec.icon;
+                const pctA = Math.max(0, (this.fighterA.hp / this.fighterA.maxHp) * 100);
+                document.getElementById('hpBarA').style.width = `${pctA}%`;
+                document.getElementById('hpTextA').innerText = `${this.fighterA.hp} / ${this.fighterA.maxHp}`;
+
+                // Lutador B
+                document.getElementById('nameB').innerText = this.fighterB.data.name;
+                document.getElementById('avatarB').innerText = this.fighterB.classSpec.icon;
+                const pctB = Math.max(0, (this.fighterB.hp / this.fighterB.maxHp) * 100);
+                document.getElementById('hpBarB').style.width = `${pctB}%`;
+                document.getElementById('hpTextB').innerText = `${this.fighterB.hp} / ${this.fighterB.maxHp}`;
+            }
+
+            applyGift(targetIsA, giftAmount) {
+                const fighter = targetIsA ? this.fighterA : this.fighterB;
+                const tier = GIFT_TIERS[giftAmount];
+                if (!fighter || !tier) return;
+
+                // Cura Real em Tempo Real
+                fighter.hp = Math.min(fighter.maxHp + (tier.divine ? 500 : 0), fighter.hp + tier.hp);
+
+                // Bônus Temporários
+                fighter.tempBuffs.strP += tier.strP;
+                fighter.tempBuffs.spdP += tier.spdP;
+                fighter.tempBuffs.defP += tier.defP;
+
+                if (tier.divine) fighter.tempBuffs.divine = true;
+
+                // Efeito Flutuante Visual
+                this.floatingTexts.push(new FloatingText(
+                    fighter.x, fighter.y - 100,
+                    `🎁 +${giftAmount}! ${tier.label}`,
+                    '#00f0ff', 16, true
+                ));
+
+                this.log(`🎁 PRESENTE! @USUARIO enviou ${giftAmount} para ${fighter.data.name}! (${tier.label})`, 'gift');
             }
         }
 
-        /* --- UI & INTERACTION CONTROLLER --- */
-        class UIController {
-            constructor(game) {
-                this.game = game;
+        /* ==========================================================================
+           5. SISTEMA DE TORNEIO E RANKING DA V1.5 (PRESERVAÇÃO INTEGRAL)
+           ========================================================================== */
+        class TournamentManager {
+            constructor() {
+                this.players = [];
+                this.top20 = [];
+                this.bracketQueue = [];
+                this.currentMatchIndex = 0;
+                this.currentWinner = null;
+                this.status = 'WAITING'; // WAITING, FROZEN, RUNNING
+
+                this.combatEngine = new CombatEngine(
+                    document.getElementById('combatCanvas'),
+                    document.getElementById('logMessages')
+                );
             }
 
-            renderRanking() {
+            generatePlayers() {
+                const names = [
+                    'Slayer', 'Shadow', 'Valkyrie', 'Titan', 'Apex', 'Phoenix', 'Kratos', 
+                    'Storm', 'Vortex', 'Blaze', 'Cipher', 'Ragnar', 'Spectre', 'Zenith', 
+                    'Hyperion', 'Zero', 'Draco', 'Omega', 'Lethal', 'Frost', 'Nexus', 
+                    'Ares', 'Venom', 'Eclipse', 'Viper'
+                ];
+
+                const classKeys = Object.keys(CLASSES);
+
+                this.players = names.map((name, index) => {
+                    const classType = classKeys[Math.floor(Math.random() * classKeys.length)];
+                    return {
+                        id: index + 1,
+                        name: name,
+                        classType: classType,
+                        rank: 25 - index,
+                        points: (25 - index) * 100
+                    };
+                });
+
+                this.status = 'WAITING';
+                this.updateUI();
+            }
+
+            startTournament() {
+                if (this.players.length < 20) {
+                    alert('Gere os 25 jogadores primeiro!');
+                    return;
+                }
+
+                // 1. Congelar Top 20
+                this.top20 = [...this.players].sort((a, b) => b.points - a.points).slice(0, 20);
+                this.status = 'FROZEN';
+                this.updateUI();
+
+                // 2. Montar Fila Estrita do Torneio da V1.5 (#19 VS #20, depois Vencedor VS #18...)
+                this.bracketQueue = [];
+                
+                // Primeiro Confronto: #19 VS #20 (Índices 18 e 19)
+                let p19 = this.top20[18];
+                let p20 = this.top20[19];
+
+                this.runBracketStep(p19, p20, 17);
+            }
+
+            runBracketStep(fighterA, fighterB, nextRankIndex) {
+                this.status = 'RUNNING';
+                this.updateUI();
+
+                // Iniciar Luta na Engine Visual V1.6
+                this.combatEngine.initMatch(fighterA, fighterB, (winner) => {
+                    this.currentWinner = winner;
+
+                    if (nextRankIndex >= 0) {
+                        // Próximo Adversário da Fila (#18, #17 ... até #1)
+                        const nextOpponent = this.top20[nextRankIndex];
+                        this.combatEngine.log(`🏆 ${winner.name} venceu e avança para enfrentar o #${nextRankIndex + 1} (${nextOpponent.name})!`);
+                        
+                        setTimeout(() => {
+                            this.runBracketStep(winner, nextOpponent, nextRankIndex - 1);
+                        }, 2000);
+                    } else {
+                        // TORNEIO CONCLUÍDO - CAMPEÃO DA LWAR
+                        this.declareChampion(winner);
+                    }
+                });
+            }
+
+            declareChampion(champion) {
+                this.status = 'COMPLETED';
+                this.updateUI();
+                document.getElementById('championName').innerText = `${champion.name} (${CLASSES[champion.classType].name})`;
+                document.getElementById('championOverlay').classList.add('show');
+                this.combatEngine.log(`👑 CAMPEÃO DA LWAR ARENA: ${champion.name}!`, 'crit');
+            }
+
+            updateUI() {
                 const list = document.getElementById('rankingList');
                 list.innerHTML = '';
 
-                const top20 = this.game.players.slice(0, 20);
-                top20.forEach((player, index) => {
-                    const li = document.createElement('li');
-                    li.className = `rank-item ${player.eliminated ? 'eliminated' : ''}`;
-                    
-                    const activeMatch = this.game.battleManager.activeMatch;
-                    if (activeMatch && (activeMatch.fighterA.id === player.id || activeMatch.fighterB.id === player.id)) {
-                        li.classList.add('active-fighter');
+                const displayList = this.top20.length > 0 ? this.top20 : this.players;
+
+                displayList.forEach((p, idx) => {
+                    const item = document.createElement('div');
+                    item.className = `ranking-item rank-${idx + 1}`;
+                    if (p === this.combatEngine.fighterA?.data || p === this.combatEngine.fighterB?.data) {
+                        item.classList.add('active-fighter');
                     }
 
-                    li.innerHTML = `
-                        <span class="rank-pos">#${index + 1}</span>
-                        <span class="rank-name">${player.classData.icon} @${player.name}</span>
-                        <span class="rank-score">${player.getRank()} (${player.rawScore} pts)</span>
+                    item.innerHTML = `
+                        <div class="rank-num">#${idx + 1}</div>
+                        <div class="player-info">
+                            <div class="player-name">${p.name}</div>
+                            <div class="player-meta">
+                                <span class="class-badge">${CLASSES[p.classType].icon} ${CLASSES[p.classType].name}</span>
+                                <span>${p.points} pts</span>
+                            </div>
+                        </div>
                     `;
-                    list.appendChild(li);
+                    list.appendChild(item);
                 });
 
-                // Update Waiting Queue
-                const queueList = document.getElementById('queueList');
-                const queue = this.game.players.slice(20);
-                if (queue.length > 0) {
-                    queueList.innerText = queue.map(p => `@${p.name}`).join(', ');
-                } else {
-                    queueList.innerText = "Nenhum jogador na fila.";
-                }
-            }
-
-            updateMatchHud(fighterA, fighterB) {
-                document.getElementById('hudFighterA').innerHTML = `
-                    <div class="hud-name">${fighterA.classData.icon} @${fighterA.name}</div>
-                    <div class="hud-stats">Classe: ${fighterA.className} | Rank: ${fighterA.getRank()}</div>
-                    <div class="hud-stats">❤️ HP: ${fighterA.hp}/${fighterA.maxHp} | ⚔️ STR: ${fighterA.strength} | 🛡️ DEF: ${fighterA.defense}</div>
-                `;
-
-                document.getElementById('hudFighterB').innerHTML = `
-                    <div class="hud-name">${fighterB.classData.icon} @${fighterB.name}</div>
-                    <div class="hud-stats">Classe: ${fighterB.className} | Rank: ${fighterB.getRank()}</div>
-                    <div class="hud-stats">❤️ HP: ${fighterB.hp}/${fighterB.maxHp} | ⚔️ STR: ${fighterB.strength} | 🛡️ DEF: ${fighterB.defense}</div>
-                `;
-
-                document.getElementById('giftTitleA').innerText = `🎁 Apoiar @${fighterA.name}`;
-                document.getElementById('giftTitleB').innerText = `🎁 Apoiar @${fighterB.name}`;
+                document.getElementById('rankCount').innerText = `${displayList.length}/20`;
                 
-                this.renderRanking();
-            }
-
-            updateTimerDisplay(seconds, isFrenzy) {
-                const timerEl = document.getElementById('timerDisplay');
-                const formatted = seconds < 10 ? `0${seconds}` : seconds;
-                timerEl.innerHTML = `⏱️ 00:${formatted}`;
-                if (isFrenzy) timerEl.classList.add('frenzy');
-                else timerEl.classList.remove('frenzy');
-            }
-
-            toggleGiftButtons(enabled) {
-                const btns = document.querySelectorAll('.btn-gift');
-                btns.forEach(b => b.disabled = !enabled);
+                const badge = document.getElementById('tournamentStatusBadge');
+                if (this.status === 'WAITING') { badge.innerText = 'Aguardando'; badge.className = 'status-badge status-waiting'; }
+                else if (this.status === 'FROZEN') { badge.innerText = 'Congelado'; badge.className = 'status-badge status-frozen'; }
+                else if (this.status === 'RUNNING') { badge.innerText = 'Em Combate'; badge.className = 'status-badge status-active'; }
             }
         }
 
-        /* --- MAIN GAME CONTROLLER --- */
-        class GameEngine {
-            constructor() {
-                this.players = [];
-                this.isFrozen = false;
-                this.canvasRenderer = new ArenaCanvas('arenaCanvas');
-                this.battleManager = new BattleManager(this);
-                this.tournamentManager = new TournamentManager(this);
-                this.ui = new UIController(this);
-            }
+        /* ==========================================================================
+           6. INICIALIZAÇÃO E CONTROLES DE INTERFACE
+           ========================================================================== */
+        const tournament = new TournamentManager();
+        let selectedTargetA = true;
 
-            init() {
-                this.canvasRenderer.init();
-                this.bindEvents();
-            }
-
-            bindEvents() {
-                document.getElementById('btnPopulate').addEventListener('click', () => this.populatePlayers());
-                document.getElementById('btnStartTournament').addEventListener('click', () => {
-                    document.getElementById('btnStartTournament').disabled = true;
-                    document.getElementById('btnPopulate').disabled = true;
-                    this.tournamentManager.start();
-                });
-                document.getElementById('btnReset').addEventListener('click', () => location.reload());
-            }
-
-            populatePlayers() {
-                this.players = [];
-                const classKeys = Object.keys(CLASSES);
-
-                for (let i = 0; i < 25; i++) {
-                    const name = NICKNAMES[i % NICKNAMES.length] + (i >= NICKNAMES.length ? i : '');
-                    const randomClass = classKeys[Math.floor(Math.random() * classKeys.length)];
-                    const p = new Player(i + 1, name, randomClass);
-                    this.players.push(p);
-                }
-
-                // Sort by initial points
-                this.players.sort((a, b) => b.rawScore - a.rawScore);
-
-                this.ui.renderRanking();
-                this.logEvent('👥 25 Jogadores criados e prontos para a arena!', 'log-system');
-                document.getElementById('btnStartTournament').disabled = false;
-            }
-
-            sendGift(targetSide, hpAmount) {
-                if (!this.battleManager.activeMatch) return;
-
-                const targetFighter = targetSide === 'A' ? this.battleManager.activeMatch.fighterA : this.battleManager.activeMatch.fighterB;
-                targetFighter.hp = Math.min(targetFighter.maxHp, targetFighter.hp + hpAmount);
-
-                const canvasX = targetSide === 'A' ? 240 : 560;
-                this.canvasRenderer.addFloatingText(canvasX, 220, `+${hpAmount} HP!`, '#2ecc71');
-                this.canvasRenderer.addParticles(canvasX, 240, '#2ecc71', 12);
-
-                this.logEvent(`🎁 PRESENTE! @${targetFighter.name} recebeu +${hpAmount} de HP!`, 'log-gift');
-                this.ui.updateMatchHud(this.battleManager.activeMatch.fighterA, this.battleManager.activeMatch.fighterB);
-            }
-
-            logEvent(message, cssClass = '') {
-                const log = document.getElementById('battleLog');
-                const entry = document.createElement('div');
-                entry.className = `log-entry ${cssClass}`;
-                entry.innerText = message;
-                log.insertBefore(entry, log.firstChild);
-            }
-        }
-
-        // Global Game Instance Start
-        let game;
-        window.addEventListener('load', () => {
-            game = new GameEngine();
-            game.init();
+        document.getElementById('btnGen25').addEventListener('click', () => {
+            tournament.generatePlayers();
         });
+
+        document.getElementById('btnStartTournament').addEventListener('click', () => {
+            tournament.startTournament();
+        });
+
+        document.getElementById('btnReset').addEventListener('click', () => {
+            location.reload();
+        });
+
+        document.getElementById('targetABtn').addEventListener('click', () => {
+            selectedTargetA = true;
+            document.getElementById('targetABtn').classList.add('selected');
+            document.getElementById('targetBBtn').classList.remove('selected');
+        });
+
+        document.getElementById('targetBBtn').addEventListener('click', () => {
+            selectedTargetA = false;
+            document.getElementById('targetBBtn').classList.add('selected');
+            document.getElementById('targetABtn').classList.remove('selected');
+        });
+
+        function sendGift(amount) {
+            tournament.combatEngine.applyGift(selectedTargetA, amount);
+        }
+
+        function closeChampionOverlay() {
+            document.getElementById('championOverlay').classList.remove('show');
+        }
+
+        // Gerar jogadores automaticamente ao iniciar para conveniência
+        window.onload = () => {
+            tournament.generatePlayers();
+        };
     </script>
 </body>
 </html>
