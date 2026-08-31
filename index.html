@@ -1,1581 +1,1511 @@
-Aqui está o código completo e oficial do index.html da V1.6 do LWAR ARENA.
-O código inclui o Motor de Combate (CombatEngine) baseado em Canvas 60 FPS, sistema de posições e aproximação sem sobreposição, 5 classes com estilos e habilidades visuais únicas, combos, acerto crítico, bloqueio, esquiva com shadow-dash, parada de impacto (hitstop), sistema de presentes com bônus temporários em tempo real (incluindo o Poder Divino 49.999), Modo Frenesi nos últimos 10s, log de combate em tempo real e preservação exata da lógica do Torneio da V1.5 (#19 VS #20 até o Campeão #1).
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LWAR ARENA V1.6 - Motor de Combate Oficial</title>
-    <style>
-        :root {
-            --bg-dark: #0b0e14;
-            --bg-card: #151a23;
-            --bg-card-hover: #1c2330;
-            --accent-cyan: #00f0ff;
-            --accent-gold: #ffc800;
-            --accent-red: #ff2a5f;
-            --accent-green: #00ff88;
-            --accent-purple: #9d4edd;
-            --text-main: #f0f4f8;
-            --text-muted: #8a99ad;
-            --border-color: #232d3f;
-            --frenzy-glow: #ff3300;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            user-select: none;
-        }
-
-        body {
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
-        }
-
-        /* HEADER */
-        header {
-            background: linear-gradient(180deg, rgba(21,26,35,0.95) 0%, rgba(11,14,20,0.95) 100%);
-            border-bottom: 2px solid var(--border-color);
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            z-index: 10;
-        }
-
-        .logo-area {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .logo-title {
-            font-size: 1.5rem;
-            font-weight: 900;
-            letter-spacing: 2px;
-            background: linear-gradient(45deg, var(--accent-cyan), var(--accent-gold));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-transform: uppercase;
-        }
-
-        .version-tag {
-            background: var(--accent-red);
-            color: #fff;
-            font-size: 0.7rem;
-            font-weight: 800;
-            padding: 2px 8px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .header-controls {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn {
-            background: var(--bg-card);
-            color: var(--text-main);
-            border: 1px solid var(--border-color);
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .btn:hover {
-            background: var(--bg-card-hover);
-            border-color: var(--accent-cyan);
-            color: var(--accent-cyan);
-            transform: translateY(-1px);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #0088ff 0%, #00f0ff 100%);
-            color: #000;
-            border: none;
-        }
-
-        .btn-primary:hover {
-            box-shadow: 0 0 15px rgba(0,240,255,0.4);
-            color: #000;
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #e63946 0%, #ff2a5f 100%);
-            color: #fff;
-            border: none;
-        }
-
-        /* LAYOUT PRINCIPAL */
-        .main-container {
-            display: grid;
-            grid-template-columns: 320px 1fr 340px;
-            gap: 15px;
-            padding: 15px;
-            flex: 1;
-            max-width: 1800px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        /* COLUNA DA ESQUERDA: TOP 20 & TORNEIO */
-        .panel {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-        }
-
-        .panel-header {
-            background: rgba(0,0,0,0.2);
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--border-color);
-            font-weight: 800;
-            font-size: 0.95rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: var(--accent-gold);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .tournament-status {
-            padding: 10px 15px;
-            background: rgba(0, 240, 255, 0.05);
-            border-bottom: 1px solid var(--border-color);
-            font-size: 0.8rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .status-badge {
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: 800;
-            font-size: 0.75rem;
-        }
-
-        .status-waiting { background: rgba(255, 200, 0, 0.2); color: var(--accent-gold); }
-        .status-frozen { background: rgba(0, 240, 255, 0.2); color: var(--accent-cyan); }
-        .status-active { background: rgba(0, 255, 136, 0.2); color: var(--accent-green); }
-
-        .ranking-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .ranking-item {
-            display: flex;
-            align-items: center;
-            padding: 8px 10px;
-            background: rgba(255,255,255,0.02);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            transition: all 0.2s ease;
-        }
-
-        .ranking-item.active-fighter {
-            border-color: var(--accent-cyan);
-            background: rgba(0, 240, 255, 0.1);
-            transform: scale(1.02);
-        }
-
-        .ranking-item.eliminated {
-            opacity: 0.4;
-            filter: grayscale(1);
-        }
-
-        .rank-num {
-            font-weight: 900;
-            width: 32px;
-            color: var(--text-muted);
-        }
-
-        .rank-1 .rank-num { color: var(--accent-gold); font-size: 1.1rem; }
-        .rank-2 .rank-num { color: #c0c0c0; }
-        .rank-3 .rank-num { color: #cd7f32; }
-
-        .player-info {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .player-name {
-            font-weight: 700;
-            color: var(--text-main);
-        }
-
-        .player-meta {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            display: flex;
-            gap: 8px;
-        }
-
-        .class-badge {
-            font-size: 0.7rem;
-            padding: 1px 5px;
-            border-radius: 3px;
-            background: rgba(255,255,255,0.1);
-        }
-
-        /* COLUNA CENTRAL: ARENA DE COMBATE */
-        .arena-container {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .match-header {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: relative;
-        }
-
-        .fighter-hud {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            width: 40%;
-        }
-
-        .fighter-hud.right {
-            flex-direction: row-reverse;
-            text-align: right;
-        }
-
-        .hud-avatar {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            background: #2a3447;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            border: 2px solid var(--border-color);
-        }
-
-        .hud-details {
-            flex: 1;
-        }
-
-        .hud-name {
-            font-weight: 800;
-            font-size: 1rem;
-            margin-bottom: 4px;
-        }
-
-        .hp-bar-outer {
-            height: 14px;
-            background: rgba(0,0,0,0.5);
-            border-radius: 7px;
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1);
-            position: relative;
-        }
-
-        .hp-bar-inner {
-            height: 100%;
-            width: 100%;
-            background: linear-gradient(90deg, #00ff88, #00b894);
-            transition: width 0.15s ease-out;
-        }
-
-        .hp-text {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            font-size: 0.65rem;
-            font-weight: 900;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-shadow: 0 1px 2px #000;
-        }
-
-        .vs-badge {
-            font-size: 1.2rem;
-            font-weight: 900;
-            font-style: italic;
-            color: var(--accent-red);
-            background: rgba(255, 42, 95, 0.1);
-            padding: 6px 14px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 42, 95, 0.3);
-        }
-
-        .timer-display {
-            position: absolute;
-            top: -12px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--bg-dark);
-            border: 1px solid var(--border-color);
-            padding: 2px 12px;
-            border-radius: 12px;
-            font-weight: 900;
-            font-size: 0.85rem;
-            color: var(--accent-gold);
-        }
-
-        .timer-display.frenzy {
-            color: #ff2a5f;
-            border-color: #ff2a5f;
-            animation: pulse-frenzy 0.5s infinite alternate;
-        }
-
-        @keyframes pulse-frenzy {
-            from { transform: translateX(-50%) scale(1); box-shadow: 0 0 5px #ff2a5f; }
-            to { transform: translateX(-50%) scale(1.1); box-shadow: 0 0 15px #ff2a5f; }
-        }
-
-        /* CANVAS ARENA */
-        .canvas-wrapper {
-            position: relative;
-            width: 100%;
-            height: 380px;
-            background: #080a0f;
-            border: 2px solid var(--border-color);
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
-        }
-
-        #combatCanvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-
-        .frenzy-banner {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%) scale(0);
-            background: linear-gradient(90deg, transparent, rgba(255, 42, 95, 0.8), transparent);
-            color: #fff;
-            font-weight: 900;
-            font-size: 1.8rem;
-            letter-spacing: 4px;
-            padding: 5px 40px;
-            pointer-events: none;
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            text-shadow: 0 0 10px #000;
-            z-index: 5;
-        }
-
-        .frenzy-banner.show {
-            transform: translateX(-50%) scale(1);
-        }
-
-        /* LOG DE COMBATE */
-        .combat-log-container {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            height: 160px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .log-header {
-            padding: 6px 12px;
-            background: rgba(0,0,0,0.3);
-            font-size: 0.75rem;
-            font-weight: 800;
-            color: var(--text-muted);
-            border-bottom: 1px solid var(--border-color);
-            text-transform: uppercase;
-        }
-
-        .log-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            font-size: 0.8rem;
-            font-family: monospace;
-        }
-
-        .log-entry {
-            line-height: 1.3;
-            color: #b0c0d0;
-            animation: fadeIn 0.2s ease;
-        }
-
-        .log-entry.crit { color: #ffcc00; font-weight: bold; }
-        .log-entry.heavy { color: #ff5555; font-weight: bold; }
-        .log-entry.gift { color: #00f0ff; font-weight: bold; }
-        .log-entry.frenzy { color: #ff2a5f; font-weight: bold; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* COLUNA DA DIREITA: SIMULADOR DE PRESENTES & PAINEL DE CONTROLE */
-        .gift-simulator {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            padding: 12px;
-        }
-
-        .gift-target-selector {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 5px;
-        }
-
-        .target-btn {
-            flex: 1;
-            padding: 8px;
-            border-radius: 6px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            font-size: 0.8rem;
-            font-weight: 700;
-            cursor: pointer;
-            text-align: center;
-        }
-
-        .target-btn.selected {
-            border-color: var(--accent-gold);
-            background: rgba(255, 200, 0, 0.15);
-            color: var(--accent-gold);
-        }
-
-        .gift-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-        }
-
-        .gift-card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .gift-card:hover {
-            border-color: var(--accent-cyan);
-            background: rgba(0, 240, 255, 0.08);
-            transform: translateY(-2px);
-        }
-
-        .gift-card.divine {
-            grid-column: span 2;
-            background: linear-gradient(135deg, rgba(255,200,0,0.15) 0%, rgba(255,42,95,0.15) 100%);
-            border-color: var(--accent-gold);
-        }
-
-        .gift-card.divine:hover {
-            box-shadow: 0 0 15px rgba(255, 200, 0, 0.4);
-        }
-
-        .gift-icon { font-size: 1.4rem; }
-        .gift-val { font-weight: 800; font-size: 0.85rem; color: var(--accent-gold); }
-        .gift-desc { font-size: 0.68rem; color: var(--text-muted); text-align: center; }
-
-        /* OVERLAY DE VITORIA */
-        .champion-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(8, 10, 15, 0.9);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s ease;
-        }
-
-        .champion-overlay.show {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .champion-card {
-            background: var(--bg-card);
-            border: 2px solid var(--accent-gold);
-            border-radius: 16px;
-            padding: 40px;
-            text-align: center;
-            box-shadow: 0 0 50px rgba(255, 200, 0, 0.3);
-            max-width: 450px;
-            width: 90%;
-            animation: popup 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        @keyframes popup {
-            from { transform: scale(0.8); }
-            to { transform: scale(1); }
-        }
-
-        .champion-trophy { font-size: 4rem; margin-bottom: 10px; }
-        .champion-title { font-size: 1.8rem; font-weight: 900; color: var(--accent-gold); margin-bottom: 5px; }
-        .champion-name { font-size: 1.4rem; font-weight: 800; margin-bottom: 15px; color: #fff; }
-
-        /* RESPONSIVIDADE (MOBILE FIT) */
-        @media (max-width: 1024px) {
-            .main-container {
-                grid-template-columns: 1fr;
-                flex-direction: column;
-            }
-            .canvas-wrapper {
-                height: 300px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>LWAR ARENA v1.7 — RPG Medieval Arena</title>
+  <style>
+    /* ==========================================================================
+       ESTILOS GERAIS & PALETA RPG MEDIEVAL (V1.7)
+       ========================================================================== */
+    :root {
+      --bg-dark: #090b0e;
+      --bg-panel: #131720;
+      --bg-card: #1c2230;
+      --border-metal: #2e384e;
+      --border-gold: #c99738;
+      
+      --gold: #ffd700;
+      --gold-dark: #b8860b;
+      --red-danger: #e63946;
+      --red-dark: #8b0000;
+      --purple-magic: #9d4edd;
+      --orange-frenzy: #ff7b00;
+      --green-hp: #2ec4b6;
+      --blue-energy: #3a86ff;
+      --text-main: #f1f5f9;
+      --text-muted: #8896ab;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* ==========================================================================
+       HEADER DA ARENA
+       ========================================================================== */
+    .lwar-header {
+      background: linear-gradient(180deg, #181d28 0%, #0d1017 100%);
+      border-bottom: 2px solid var(--border-metal);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+      z-index: 10;
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.1rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: var(--gold);
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    }
+
+    .header-match-info {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border-metal);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-timer {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: monospace;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #fff;
+      background: #000;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid #333;
+    }
+
+    .frenzy-badge {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      background: linear-gradient(45deg, var(--orange-frenzy), var(--red-danger));
+      color: #fff;
+      font-weight: 900;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      animation: frenzyPulse 0.6s infinite alternate;
+      box-shadow: 0 0 12px var(--orange-frenzy);
+    }
+
+    .frenzy-badge.active {
+      display: flex;
+    }
+
+    @keyframes frenzyPulse {
+      0% { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(1.08); opacity: 1; }
+    }
+
+    /* ==========================================================================
+       LAYOUT PRINCIPAL (DESKTOP: ARENA 78% | TOP20 22%)
+       ========================================================================== */
+    .lwar-main-content {
+      display: flex;
+      flex: 1;
+      width: 100%;
+      max-width: 1600px;
+      margin: 0 auto;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .arena-section {
+      flex: 1 1 78%;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: #000;
+      border: 2px solid var(--border-metal);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+    }
+
+    /* Canvas 2D da Arena Fantasy */
+    #arenaCanvas {
+      width: 100%;
+      height: 100%;
+      min-height: 380px;
+      display: block;
+      background: #05070a;
+    }
+
+    /* Overlay de Anúncio de Presente na Arena */
+    .gift-announcement {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: linear-gradient(135deg, rgba(20, 15, 35, 0.95), rgba(45, 20, 70, 0.95));
+      border: 2px solid var(--purple-magic);
+      box-shadow: 0 0 20px rgba(157, 78, 221, 0.6);
+      padding: 10px 20px;
+      border-radius: 30px;
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 800;
+      text-align: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 5;
+    }
+
+    .gift-announcement.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .gift-announcement .buff-details {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 4px;
+      font-size: 0.8rem;
+      color: var(--gold);
+    }
+
+    /* Overlay do Frenesi */
+    .frenzy-screen-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border: 4px solid transparent;
+      transition: border-color 0.3s ease;
+      z-index: 4;
+    }
+
+    .frenzy-screen-overlay.active {
+      border-color: rgba(255, 123, 0, 0.6);
+      animation: frenzyBorderGlow 0.8s infinite alternate;
+    }
+
+    @keyframes frenzyBorderGlow {
+      from { box-shadow: inset 0 0 15px rgba(255, 123, 0, 0.3); }
+      to { box-shadow: inset 0 0 40px rgba(230, 57, 70, 0.7); }
+    }
+
+    /* ==========================================================================
+       PAINEL TOP 20 (DESKTOP LATERAL COMPACTO)
+       ========================================================================== */
+    .top20-sidebar {
+      flex: 0 0 22%;
+      min-width: 260px;
+      background: var(--bg-panel);
+      border: 2px solid var(--border-metal);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .top20-header {
+      background: linear-gradient(180deg, #222a3a 0%, #161b26 100%);
+      padding: 10px 14px;
+      border-bottom: 2px solid var(--border-metal);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .top20-title {
+      font-size: 0.95rem;
+      font-weight: 900;
+      color: var(--gold);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .top20-status-tag {
+      font-size: 0.7rem;
+      background: rgba(201, 151, 56, 0.15);
+      color: var(--gold);
+      border: 1px solid var(--border-gold);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    .top20-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .top20-list::-webkit-scrollbar {
+      width: 5px;
+    }
+    .top20-list::-webkit-scrollbar-thumb {
+      background: var(--border-metal);
+      border-radius: 4px;
+    }
+
+    .player-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      font-size: 0.82rem;
+      transition: all 0.2s;
+    }
+
+    .player-row.top-1 {
+      border-color: var(--gold);
+      background: linear-gradient(90deg, rgba(255, 215, 0, 0.15) 0%, var(--bg-card) 100%);
+    }
+    .player-row.top-2 {
+      border-color: #c0c0c0;
+      background: linear-gradient(90deg, rgba(192, 192, 192, 0.1) 0%, var(--bg-card) 100%);
+    }
+    .player-row.top-3 {
+      border-color: #cd7f32;
+      background: linear-gradient(90deg, rgba(205, 127, 50, 0.1) 0%, var(--bg-card) 100%);
+    }
+
+    .player-row.in-battle {
+      border-color: var(--blue-energy);
+      background: linear-gradient(90deg, rgba(58, 134, 255, 0.25) 0%, var(--bg-card) 100%);
+      box-shadow: 0 0 10px rgba(58, 134, 255, 0.3);
+      animation: battlePulse 1.2s infinite alternate;
+    }
+
+    @keyframes battlePulse {
+      0% { border-color: rgba(58, 134, 255, 0.4); }
+      100% { border-color: rgba(58, 134, 255, 1); }
+    }
+
+    .player-row.eliminated {
+      opacity: 0.4;
+      filter: grayscale(0.8);
+      text-decoration: line-through;
+    }
+
+    .player-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    .rank-num {
+      font-weight: 900;
+      width: 22px;
+      text-align: center;
+      font-size: 0.85rem;
+    }
+
+    .player-name {
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 110px;
+    }
+
+    .player-points {
+      font-family: monospace;
+      font-weight: bold;
+      color: var(--gold);
+      font-size: 0.8rem;
+    }
+
+    /* ==========================================================================
+       ÁREA INFERIOR: PRESENTES / APOIO AO LUTADOR
+       ========================================================================== */
+    .gifts-panel {
+      background: var(--bg-panel);
+      border-top: 2px solid var(--border-metal);
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .gifts-panel-title {
+      font-size: 0.9rem;
+      font-weight: 900;
+      color: var(--gold);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .support-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .support-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-metal);
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .support-card.left-fighter {
+      border-left: 4px solid var(--blue-energy);
+    }
+    .support-card.right-fighter {
+      border-left: 4px solid var(--red-danger);
+    }
+
+    .fighter-support-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .fighter-support-name {
+      font-weight: 800;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .fighter-buff-badge {
+      font-size: 0.75rem;
+      color: var(--purple-magic);
+      font-weight: bold;
+    }
+
+    .gift-buttons-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .btn-gift {
+      flex: 1;
+      min-width: 45px;
+      background: linear-gradient(180deg, #2b3548 0%, #1e2534 100%);
+      border: 1px solid var(--border-metal);
+      color: #fff;
+      font-weight: 800;
+      font-size: 0.75rem;
+      padding: 6px 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    .btn-gift:hover {
+      background: linear-gradient(180deg, #3d4b66 0%, #293348 100%);
+      border-color: var(--gold);
+      color: var(--gold);
+      transform: translateY(-2px);
+    }
+
+    .btn-gift:active {
+      transform: translateY(0);
+    }
+
+    /* Painel de Controle de Simulação LIVE */
+    .admin-bar {
+      background: #0d1017;
+      border-top: 1px solid #1a2233;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .admin-btn {
+      background: #1e2638;
+      border: 1px solid var(--border-metal);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .admin-btn:hover {
+      color: #fff;
+      border-color: #4a5a7b;
+    }
+
+    /* ==========================================================================
+       TELA DE CAMPEÃO (OVERLAY MODAL)
+       ========================================================================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 7, 12, 0.9);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .champion-card {
+      background: linear-gradient(135deg, #1f1a0a 0%, #0d0e12 100%);
+      border: 3px solid var(--gold);
+      box-shadow: 0 0 50px rgba(255, 215, 0, 0.4), inset 0 0 30px rgba(255, 215, 0, 0.1);
+      border-radius: 16px;
+      padding: 30px 40px;
+      text-align: center;
+      max-width: 420px;
+      width: 90%;
+      transform: scale(0.8);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .modal-overlay.active .champion-card {
+      transform: scale(1);
+    }
+
+    .champion-icon {
+      font-size: 4rem;
+      margin-bottom: 10px;
+      animation: championFloat 2s infinite alternate ease-in-out;
+    }
+
+    @keyframes championFloat {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-10px); }
+    }
+
+    .champion-title {
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: var(--gold);
+      letter-spacing: 2px;
+      margin-bottom: 5px;
+    }
+
+    .champion-handle {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+      margin-bottom: 8px;
+    }
+
+    .champion-class {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--purple-magic);
+      margin-bottom: 20px;
+    }
+
+    .champion-badge {
+      display: inline-block;
+      background: linear-gradient(90deg, var(--gold-dark), var(--gold));
+      color: #000;
+      font-weight: 900;
+      padding: 8px 24px;
+      border-radius: 20px;
+      font-size: 1rem;
+      box-shadow: 0 4px 15px rgba(255, 215, 0, 0.5);
+      margin-bottom: 20px;
+    }
+
+    .btn-restart {
+      background: linear-gradient(180deg, #2e384e 0%, #1a202c 100%);
+      border: 1px solid var(--border-gold);
+      color: var(--gold);
+      font-weight: 800;
+      padding: 10px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .btn-restart:hover {
+      background: var(--gold);
+      color: #000;
+    }
+
+    /* ==========================================================================
+       RESPONSIVIDADE MOBILE (SEM SCROLL HORIZONTAL)
+       ========================================================================== */
+    @media (max-width: 899px) {
+      .lwar-main-content {
+        flex-direction: column;
+        padding: 8px;
+        gap: 8px;
+      }
+
+      .arena-section {
+        flex: none;
+        height: 320px;
+      }
+
+      #arenaCanvas {
+        min-height: auto;
+        height: 320px;
+      }
+
+      .top20-sidebar {
+        flex: none;
+        width: 100%;
+        min-width: auto;
+        max-height: 180px;
+      }
+
+      .top20-list {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+      }
+
+      .support-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .header-title {
+        font-size: 0.95rem;
+      }
+
+      .header-match-info {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+      }
+    }
+  </style>
 </head>
 <body>
 
-    <!-- HEADER -->
-    <header>
-        <div class="logo-area">
-            <div class="logo-title">Lwar Arena</div>
-            <div class="version-tag">v1.6 Oficial</div>
+  <!-- HEADER DO JOGO -->
+  <header class="lwar-header">
+    <div class="header-title">
+      <span>⚔️</span>
+      <span>LWAR ARENA</span>
+    </div>
+    <div class="header-match-info" id="matchPhaseText">
+      ⚔️ #19 @JOAO VS #20 @PEDRO
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div class="frenzy-badge" id="frenzyBadge">🔥 FRENESI</div>
+      <div class="header-timer">
+        <span>⏱️</span>
+        <span id="matchTimerText">00:45</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- LAYOUT PRINCIPAL -->
+  <main class="lwar-main-content">
+    
+    <!-- 1. ARENA PRINCIPAL (78% Desktop) -->
+    <section class="arena-section">
+      <canvas id="arenaCanvas"></canvas>
+      
+      <!-- Overlay de Frenesi -->
+      <div class="frenzy-screen-overlay" id="frenzyOverlay"></div>
+
+      <!-- Anúncios de Presente recebido na arena -->
+      <div class="gift-announcement" id="giftAnnouncement">
+        <div id="giftAnnounceTitle">🎁 @CARLOS enviou 1.000 para @JOAO!</div>
+        <div class="buff-details" id="giftAnnounceBuffs">
+          <span>⚔️ FORÇA +8%</span>
+          <span>⚡ VELOCIDADE +10%</span>
+          <span>❤️ HP +100</span>
         </div>
-        <div class="header-controls">
-            <button class="btn" id="btnGen25">🎲 Criar 25 Jogadores</button>
-            <button class="btn btn-primary" id="btnStartTournament">🏆 Iniciar Torneio</button>
-            <button class="btn btn-danger" id="btnReset">🔄 Reset</button>
+      </div>
+    </section>
+
+    <!-- 2. PAINEL TOP 20 COMPACTO (22% Desktop) -->
+    <aside class="top20-sidebar">
+      <div class="top20-header">
+        <div class="top20-title">
+          <span>🏆</span>
+          <span>TOP 20 RANKING</span>
         </div>
-    </header>
+        <div class="top20-status-tag" id="rankingStatusTag">CONGELADO</div>
+      </div>
+      <div class="top20-list" id="top20Container">
+        <!-- Linhas dos jogadores geradas via JS -->
+      </div>
+    </aside>
 
-    <!-- LAYOUT PRINCIPAL -->
-    <div class="main-container">
+  </main>
 
-        <!-- PAINEL ESQUERDO: TORNEIO & RANKING -->
-        <div class="panel">
-            <div class="panel-header">
-                <span>Top 20 Ranking</span>
-                <span id="rankCount">0/20</span>
-            </div>
-            <div class="tournament-status">
-                <span>Status do Torneio:</span>
-                <span class="status-badge status-waiting" id="tournamentStatusBadge">Aguardando</span>
-            </div>
-            <div class="ranking-list" id="rankingList">
-                <!-- Preenchido via JS -->
-            </div>
+  <!-- 3. PAINEL INFERIOR DE PRESENTES / APOIO -->
+  <section class="gifts-panel">
+    <div class="gifts-panel-title">
+      <span>🎁</span>
+      <span>APOIAR LUTADOR EM COMBATE</span>
+    </div>
+    <div class="support-grid">
+      
+      <!-- Suporte Lutador Esquerda (Challenger) -->
+      <div class="support-card left-fighter">
+        <div class="fighter-support-header">
+          <div class="fighter-support-name" id="leftSupportName">⚔️ @JOAO</div>
+          <div class="fighter-buff-badge" id="leftBuffBadge">BUFFS: +0%</div>
         </div>
-
-        <!-- PAINEL CENTRAL: ARENA DE COMBATE -->
-        <div class="arena-container">
-            
-            <!-- HUD DE COMBATE -->
-            <div class="match-header">
-                <div class="timer-display" id="matchTimer">60s</div>
-                
-                <!-- FIGHTER A -->
-                <div class="fighter-hud" id="hudFighterA">
-                    <div class="hud-avatar" id="avatarA">⚔️</div>
-                    <div class="hud-details">
-                        <div class="hud-name" id="nameA">Aguardando...</div>
-                        <div class="hp-bar-outer">
-                            <div class="hp-bar-inner" id="hpBarA" style="width: 100%;"></div>
-                            <div class="hp-text" id="hpTextA">100 / 100</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="vs-badge">VS</div>
-
-                <!-- FIGHTER B -->
-                <div class="fighter-hud right" id="hudFighterB">
-                    <div class="hud-avatar" id="avatarB">🛡️</div>
-                    <div class="hud-details">
-                        <div class="hud-name" id="nameB">Aguardando...</div>
-                        <div class="hp-bar-outer">
-                            <div class="hp-bar-inner" id="hpBarB" style="width: 100%;"></div>
-                            <div class="hp-text" id="hpTextB">100 / 100</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- CANVAS DA ARENA -->
-            <div class="canvas-wrapper">
-                <div class="frenzy-banner" id="frenzyBanner">🔥 FRENESI ATIVADO! 🔥</div>
-                <canvas id="combatCanvas"></canvas>
-            </div>
-
-            <!-- LOG DE EVENTOS DE COMBATE -->
-            <div class="combat-log-container">
-                <div class="log-header">⚡ Eventos em Tempo Real</div>
-                <div class="log-messages" id="logMessages">
-                    <div class="log-entry">Aguardando início dos confrontos...</div>
-                </div>
-            </div>
+        <div class="gift-buttons-row">
+          <button class="btn-gift" onclick="handleSendGift('left', 1)">1</button>
+          <button class="btn-gift" onclick="handleSendGift('left', 100)">100</button>
+          <button class="btn-gift" onclick="handleSendGift('left', 500)">500</button>
+          <button class="btn-gift" onclick="handleSendGift('left', 1000)">1K</button>
+          <button class="btn-gift" onclick="handleSendGift('left', 5000)">5K</button>
+          <button class="btn-gift" onclick="handleSendGift('left', 10000)">10K</button>
+          <button class="btn-gift" onclick="handleSendGift('left', 49999)">49.999</button>
         </div>
+      </div>
 
-        <!-- PAINEL DIREITO: SIMULADOR DE PRESENTES -->
-        <div class="panel">
-            <div class="panel-header">
-                <span>🎁 Enviar Presente</span>
-            </div>
-            <div class="gift-simulator">
-                <div class="gift-target-selector">
-                    <button class="target-btn selected" id="targetABtn">Lutador A</button>
-                    <button class="target-btn" id="targetBBtn">Lutador B</button>
-                </div>
-                
-                <div class="gift-grid">
-                    <div class="gift-card" onclick="sendGift(1)">
-                        <span class="gift-icon">🪙</span>
-                        <span class="gift-val">1 Moeda</span>
-                        <span class="gift-desc">+5 HP Cura Mínima</span>
-                    </div>
-
-                    <div class="gift-card" onclick="sendGift(100)">
-                        <span class="gift-icon">🌹</span>
-                        <span class="gift-val">100</span>
-                        <span class="gift-desc">+20 HP | +10% Força</span>
-                    </div>
-
-                    <div class="gift-card" onclick="sendGift(500)">
-                        <span class="gift-icon">🍩</span>
-                        <span class="gift-val">500</span>
-                        <span class="gift-desc">+50 HP | +15% Força | +10% Vel</span>
-                    </div>
-
-                    <div class="gift-card" onclick="sendGift(1000)">
-                        <span class="gift-icon">💎</span>
-                        <span class="gift-val">1.000</span>
-                        <span class="gift-desc">+120 HP | +25% Força | +20% Vel</span>
-                    </div>
-
-                    <div class="gift-card" onclick="sendGift(5000)">
-                        <span class="gift-icon">🚀</span>
-                        <span class="gift-val">5.000</span>
-                        <span class="gift-desc">+300 HP | +40% Força | +35% Vel</span>
-                    </div>
-
-                    <div class="gift-card" onclick="sendGift(10000)">
-                        <span class="gift-icon">🏰</span>
-                        <span class="gift-val">10.000</span>
-                        <span class="gift-desc">+600 HP | +70% Força | +60% Vel</span>
-                    </div>
-
-                    <div class="gift-card divine" onclick="sendGift(49999)">
-                        <span class="gift-icon">👑</span>
-                        <span class="gift-val">49.999 — PODER DIVINO</span>
-                        <span class="gift-desc">CURA TOTAL + BÔNUS DIVINO EXTREMO DE ATRIBUTOS</span>
-                    </div>
-                </div>
-            </div>
+      <!-- Suporte Lutador Direita (Defender) -->
+      <div class="support-card right-fighter">
+        <div class="fighter-support-header">
+          <div class="fighter-support-name" id="rightSupportName">🥷 @PEDRO</div>
+          <div class="fighter-buff-badge" id="rightBuffBadge">BUFFS: +0%</div>
         </div>
+        <div class="gift-buttons-row">
+          <button class="btn-gift" onclick="handleSendGift('right', 1)">1</button>
+          <button class="btn-gift" onclick="handleSendGift('right', 100)">100</button>
+          <button class="btn-gift" onclick="handleSendGift('right', 500)">500</button>
+          <button class="btn-gift" onclick="handleSendGift('right', 1000)">1K</button>
+          <button class="btn-gift" onclick="handleSendGift('right', 5000)">5K</button>
+          <button class="btn-gift" onclick="handleSendGift('right', 10000)">10K</button>
+          <button class="btn-gift" onclick="handleSendGift('right', 49999)">49.999</button>
+        </div>
+      </div>
 
     </div>
+  </section>
 
-    <!-- OVERLAY CAMPEÃO DA LWAR -->
-    <div class="champion-overlay" id="championOverlay">
-        <div class="champion-card">
-            <div class="champion-trophy">🏆</div>
-            <div class="champion-title">CAMPEÃO DA LWAR</div>
-            <div class="champion-name" id="championName">Player Name</div>
-            <button class="btn btn-primary" style="margin: 0 auto;" onclick="closeChampionOverlay()">Continuar</button>
-        </div>
+  <!-- BARRA DE SIMULAÇÃO LIVE / TESTES -->
+  <div class="admin-bar">
+    <button class="admin-btn" onclick="initTournament25()">🔄 Resetar Torneio (25 Players)</button>
+    <button class="admin-btn" onclick="triggerFrenzyTest()">🔥 Forçar Frenesi</button>
+    <button class="admin-btn" onclick="simRandomGift()">🎁 Simular Presente Aleatório</button>
+    <button class="admin-btn" onclick="fastForwardMatch()">⏩ Finalizar Lutador Atual</button>
+  </div>
+
+  <!-- TELA DE CAMPEÃO (OVERLAY MODAL) -->
+  <div class="modal-overlay" id="championModal">
+    <div class="champion-card">
+      <div class="champion-icon">🏆</div>
+      <div class="champion-title">CAMPEÃO DA LWAR</div>
+      <div class="champion-handle" id="champHandle">@JOAO</div>
+      <div class="champion-class" id="champClass">⚔️ GUERREIRO SUPREMO</div>
+      <div class="champion-badge">🏆 TOP 1 CONQUISTADO 🏆</div>
+      <div>
+        <button class="btn-restart" onclick="initTournament25()">INICIAR NOVO TORNEIO</button>
+      </div>
     </div>
+  </div>
 
-    <!-- SCRIPT DO MOTOR V1.6 -->
-    <script>
-        /* ==========================================================================
-           1. CONFIGURAÇÕES DE CLASSES E ESPECIFICAÇÕES
-           ========================================================================== */
-        const CLASSES = {
-            GUERREIRO: {
-                name: 'Guerreiro',
-                icon: '⚔️',
-                color: '#3a86ff',
-                baseHp: 120,
-                baseStr: 18,
-                baseDef: 12,
-                baseSpd: 10,
-                attackRange: 55,
-                critChance: 0.15,
-                heavyChance: 0.20,
-                dodgeChance: 0.08,
-                blockChance: 0.20,
-                maxCombo: 3
-            },
-            ASSASSINO: {
-                name: 'Assassino',
-                icon: '🗡️',
-                color: '#8338ec',
-                baseHp: 90,
-                baseStr: 22,
-                baseDef: 6,
-                baseSpd: 18,
-                attackRange: 45,
-                critChance: 0.35,
-                heavyChance: 0.15,
-                dodgeChance: 0.25,
-                blockChance: 0.05,
-                maxCombo: 5
-            },
-            MAGO: {
-                name: 'Mago',
-                icon: '🔮',
-                color: '#ff006e',
-                baseHp: 85,
-                baseStr: 25,
-                baseDef: 5,
-                baseSpd: 9,
-                attackRange: 220, // Ataque à distância
-                critChance: 0.25,
-                heavyChance: 0.30,
-                dodgeChance: 0.10,
-                blockChance: 0.05,
-                maxCombo: 2
-            },
-            TANQUE: {
-                name: 'Tanque',
-                icon: '🛡️',
-                color: '#ffbe0b',
-                baseHp: 160,
-                baseStr: 14,
-                baseDef: 20,
-                baseSpd: 6,
-                attackRange: 60,
-                critChance: 0.05,
-                heavyChance: 0.35,
-                dodgeChance: 0.02,
-                blockChance: 0.40,
-                maxCombo: 2
-            },
-            NINJA: {
-                name: 'Ninja',
-                icon: '🥷',
-                color: '#00f0ff',
-                baseHp: 95,
-                baseStr: 17,
-                baseDef: 8,
-                baseSpd: 20,
-                attackRange: 50,
-                critChance: 0.25,
-                heavyChance: 0.10,
-                dodgeChance: 0.30,
-                blockChance: 0.10,
-                maxCombo: 6
-            }
+  <!-- ==========================================================================
+       LÓGICA JOGO & ENGINE 2D (V1.7 PRESERVANDO REGRAS DA V1.6)
+       ========================================================================== -->
+  <script>
+    /* --------------------------------------------------------------------------
+       1. DEFINIÇÃO DE CLASSES E LISTA DE JOGADORES INICIAIS
+       -------------------------------------------------------------------------- */
+    const CLASSES = {
+      GUERREIRO: { name: 'Guerreiro', icon: '⚔️', baseHp: 140, baseAtk: 16, baseSpd: 1.0, weapon: 'sword' },
+      MAGO:      { name: 'Mago',      icon: '🧙', baseHp: 110, baseAtk: 22, baseSpd: 1.1, weapon: 'staff' },
+      ARQUEIRO:  { name: 'Arqueiro',  icon: '🏹', baseHp: 120, baseAtk: 18, baseSpd: 1.2, weapon: 'bow' },
+      LADINO:    { name: 'Ladino',    icon: '🥷', baseHp: 115, baseAtk: 19, baseSpd: 1.35, weapon: 'daggers' },
+      BARBARO:   { name: 'Bárbaro',   icon: '🪓', baseHp: 160, baseAtk: 17, baseSpd: 0.9, weapon: 'axe' }
+    };
+
+    const NAMES_POOL = [
+      'JOAO', 'PEDRO', 'LUCAS', 'MATEUS', 'GHOST', 'NINJA', 'HARYSON', 'CARLOS',
+      'VICTOR', 'FELIPE', 'GABRIEL', 'BRUNO', 'DANIEL', 'RODRIGO', 'ARTHUR',
+      'THIAGO', 'LEONARDO', 'EDUARDO', 'RAFAEL', 'GUILHERME', 'SAMUEL', 'MARCOS',
+      'GUSTAVO', 'DIEGO', 'ALEX'
+    ];
+
+    let allPlayers = [];
+    let top20Frozen = [];
+    let tournamentQueue = []; // Sequência de lutas
+    let matchIndex = 0;
+    
+    // Estado do Combate Atual
+    let activeMatch = null;
+    let matchTimer = 45;
+    let timerInterval = null;
+    let isFrenzy = false;
+
+    // Canvas & Efeitos
+    const canvas = document.getElementById('arenaCanvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let floatingTexts = [];
+
+    /* --------------------------------------------------------------------------
+       2. CRIAÇÃO DE PERSONAGENS & INICIALIZAÇÃO DO TORNEIO
+       -------------------------------------------------------------------------- */
+    function createPlayers() {
+      const classKeys = Object.keys(CLASSES);
+      allPlayers = NAMES_POOL.map((name, idx) => {
+        const clsKey = classKeys[idx % classKeys.length];
+        const cls = CLASSES[clsKey];
+        const points = 5500 - (idx * 190) + Math.floor(Math.random() * 50);
+        return {
+          id: 'p_' + idx,
+          name: name,
+          handle: '@' + name,
+          points: points,
+          classKey: clsKey,
+          className: cls.name,
+          classIcon: cls.icon,
+          baseHp: cls.baseHp,
+          baseAtk: cls.baseAtk,
+          baseSpd: cls.baseSpd,
+          weapon: cls.weapon,
+          // Stats dinâmicos por luta
+          hp: cls.baseHp,
+          maxHp: cls.baseHp,
+          atk: cls.baseAtk,
+          spd: cls.baseSpd,
+          giftBuffs: { atkPct: 0, spdPct: 0, hpBonus: 0 },
+          eliminated: false
         };
+      });
 
-        const GIFT_TIERS = {
-            1: { hp: 5, strP: 0, spdP: 0, defP: 0, label: 'Pequena Cura' },
-            100: { hp: 20, strP: 0.10, spdP: 0, defP: 0, label: 'Força Leve' },
-            500: { hp: 50, strP: 0.15, spdP: 0.10, defP: 0, label: 'Aumento de Ritmo' },
-            1000: { hp: 120, strP: 0.25, spdP: 0.20, defP: 0.15, label: 'Super Carga' },
-            5000: { hp: 300, strP: 0.40, spdP: 0.35, defP: 0.30, label: 'Impulso Titânico' },
-            10000: { hp: 600, strP: 0.70, spdP: 0.60, defP: 0.50, label: 'Frenesi Lendário' },
-            49999: { hp: 9999, strP: 1.50, spdP: 1.00, defP: 1.00, divine: true, label: '👑 PODER DIVINO' }
-        };
+      // Ordenar por pontos para definir Ranks
+      allPlayers.sort((a, b) => b.points - a.points);
+    }
 
-        /* ==========================================================================
-           2. ESTADOS E SISTEMA DE PARTICULAS DO CANVAS
-           ========================================================================== */
-        const STATES = {
-            IDLE: 'IDLE',
-            MOVING: 'MOVING',
-            ATTACKING: 'ATTACKING',
-            DEFENDING: 'DEFENDING',
-            DODGING: 'DODGING',
-            HIT: 'HIT',
-            DEFEATED: 'DEFEATED'
-        };
+    function initTournament25() {
+      document.getElementById('championModal').classList.remove('active');
+      createPlayers();
 
-        class Particle {
-            constructor(x, y, color, speedX, speedY, size, life) {
-                this.x = x;
-                this.y = y;
-                this.color = color;
-                this.speedX = speedX;
-                this.speedY = speedY;
-                this.size = size;
-                this.maxLife = life;
-                this.life = life;
-            }
+      // Top 20 é congelado para o torneio
+      top20Frozen = JSON.parse(JSON.stringify(allPlayers.slice(0, 20)));
 
-            update() {
-                this.x += this.speedX;
-                this.y += this.speedY;
-                this.life--;
-            }
+      // Fila do Torneio: #19 vs #20, depois o vencedor vs #18, até o #1
+      // Índice na array top20Frozen: #20 é pos 19, #19 é pos 18
+      tournamentQueue = [];
+      
+      // Lutadores Iniciais: #19 (pos 18) vs #20 (pos 19)
+      const challenger = clonePlayer(top20Frozen[18]); // #19
+      const defender = clonePlayer(top20Frozen[19]);   // #20
 
-            draw(ctx) {
-                ctx.save();
-                ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
+      matchIndex = 18; // Começa enfrentando a posição 18 (#19 seed original)
+
+      renderTop20Sidebar();
+      startMatch(challenger, defender, 19, 20);
+    }
+
+    function clonePlayer(p) {
+      return {
+        ...p,
+        hp: p.baseHp,
+        maxHp: p.baseHp,
+        atk: p.baseAtk,
+        spd: p.baseSpd,
+        giftBuffs: { atkPct: 0, spdPct: 0, hpBonus: 0 },
+        x: 0,
+        y: 0,
+        animOffset: 0,
+        hitCooldown: 0,
+        attackAnim: 0
+      };
+    }
+
+    /* --------------------------------------------------------------------------
+       3. GERENCIADOR DE LUTAS & SISTEMA DE TORNEIO (V1.6 PRESERVADO)
+       -------------------------------------------------------------------------- */
+    function startMatch(pA, pB, seedA, seedB) {
+      if (timerInterval) clearInterval(timerInterval);
+
+      isFrenzy = false;
+      document.getElementById('frenzyBadge').classList.remove('active');
+      document.getElementById('frenzyOverlay').classList.remove('active');
+
+      matchTimer = 45;
+      updateTimerDisplay();
+
+      // Resetar status visuais e posições na Arena
+      pA.x = canvas.width * 0.28;
+      pA.y = canvas.height * 0.65;
+      pB.x = canvas.width * 0.72;
+      pB.y = canvas.height * 0.65;
+
+      pA.hp = pA.maxHp;
+      pB.hp = pB.maxHp;
+
+      activeMatch = {
+        fighterA: pA,
+        fighterB: pB,
+        seedA: seedA,
+        seedB: seedB,
+        cooldownA: 0,
+        cooldownB: 0,
+        over: false
+      };
+
+      // Atualizar Header & Painel de Presentes
+      const matchText = seedA === 1 && seedB === 2 ? `🏆 GRANDE FINAL` : `⚔️ #${seedA} ${pA.handle} VS #${seedB} ${pB.handle}`;
+      document.getElementById('matchPhaseText').innerText = matchText;
+
+      document.getElementById('leftSupportName').innerText = `${pA.classIcon} ${pA.handle}`;
+      document.getElementById('rightSupportName').innerText = `${pB.classIcon} ${pB.handle}`;
+      updateBuffDisplay('left');
+      updateBuffDisplay('right');
+
+      renderTop20Sidebar();
+
+      // Contador de Tempo do Combate
+      timerInterval = setInterval(() => {
+        if (!activeMatch || activeMatch.over) return;
+        
+        matchTimer--;
+        updateTimerDisplay();
+
+        // Ativação do Frenesi nos últimos 10 segundos
+        if (matchTimer <= 10 && !isFrenzy) {
+          isFrenzy = true;
+          document.getElementById('frenzyBadge').classList.add('active');
+          document.getElementById('frenzyOverlay').classList.add('active');
+          spawnFloatingText(canvas.width / 2, canvas.height * 0.3, "🔥 FRENESI!", "#ff7b00", 32);
         }
 
-        class FloatingText {
-            constructor(x, y, text, color, fontSize = 16, isCrit = false) {
-                this.x = x;
-                this.y = y;
-                this.text = text;
-                this.color = color;
-                this.fontSize = fontSize;
-                this.isCrit = isCrit;
-                this.life = 45;
-                this.maxLife = 45;
-                this.velocityY = -1.5;
-            }
-
-            update() {
-                this.y += this.velocityY;
-                this.life--;
-            }
-
-            draw(ctx) {
-                ctx.save();
-                ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
-                ctx.fillStyle = this.color;
-                ctx.font = `900 ${this.fontSize}px 'Segoe UI', sans-serif`;
-                ctx.shadowColor = '#000';
-                ctx.shadowBlur = 4;
-                ctx.textAlign = 'center';
-                ctx.fillText(this.text, this.x, this.y);
-                ctx.restore();
-            }
+        if (matchTimer <= 0) {
+          // Fim do tempo: Vencedor por maior HP %
+          endMatchByTime();
         }
+      }, 1000);
+    }
 
-        /* ==========================================================================
-           3. CLASSE DO LUTADOR VISUAL E ATRIBUTOS
-           ========================================================================== */
-        class Fighter {
-            constructor(playerData, isLeft, canvasWidth, canvasHeight) {
-                this.data = playerData;
-                this.classSpec = CLASSES[playerData.classType];
-                this.isLeft = isLeft;
-                this.canvasWidth = canvasWidth;
-                this.canvasHeight = canvasHeight;
+    function updateTimerDisplay() {
+      const sec = matchTimer < 10 ? '0' + matchTimer : matchTimer;
+      document.getElementById('matchTimerText').innerText = `00:${sec}`;
+    }
 
-                // Atributos de Combate Reais
-                this.maxHp = Math.round(this.classSpec.baseHp + (playerData.rank * 2));
-                this.hp = this.maxHp;
-                this.strength = Math.round(this.classSpec.baseStr + (playerData.rank * 0.8));
-                this.defense = Math.round(this.classSpec.baseDef + (playerData.rank * 0.5));
-                this.speed = Math.round(this.classSpec.baseSpd + (playerData.rank * 0.5));
+    function endMatchByTime() {
+      if (!activeMatch || activeMatch.over) return;
+      const fA = activeMatch.fighterA;
+      const fB = activeMatch.fighterB;
+      const pctA = fA.hp / fA.maxHp;
+      const pctB = fB.hp / fB.maxHp;
 
-                // Bônus Temporários de Presentes (Resetados por Luta)
-                this.tempBuffs = { strP: 0, spdP: 0, defP: 0, divine: false };
+      if (pctA >= pctB) {
+        handleMatchVictory(fA, fB);
+      } else {
+        handleMatchVictory(fB, fA);
+      }
+    }
 
-                // Posições e Física
-                this.groundY = canvasHeight - 60;
-                this.homeX = isLeft ? 120 : canvasWidth - 120;
-                this.x = this.homeX;
-                this.y = this.groundY;
-                this.facing = isLeft ? 1 : -1;
+    function handleMatchVictory(winner, loser) {
+      if (activeMatch.over) return;
+      activeMatch.over = true;
+      clearInterval(timerInterval);
 
-                // Estado Visual
-                this.state = STATES.IDLE;
-                this.stateTimer = 0;
-                this.animFrame = 0;
-                this.comboCount = 0;
+      // Efeito de vitória na arena
+      spawnFloatingText(canvas.width / 2, canvas.height * 0.4, `🏆 VITÓRIA DE ${winner.handle}!`, "#ffd700", 26);
 
-                // Cooldowns de Ataque
-                this.attackCooldown = 0;
+      // Marcar perdedor como eliminado no Top 20 visual
+      markPlayerEliminated(loser.handle);
 
-                // Efeitos
-                this.auraColor = null;
-            }
-
-            // Obter Atributos Efetivos com Bônus Temporários
-            getEffectiveStrength() {
-                return Math.round(this.strength * (1 + this.tempBuffs.strP));
-            }
-
-            getEffectiveSpeed() {
-                return Math.round(this.speed * (1 + this.tempBuffs.spdP));
-            }
-
-            getEffectiveDefense() {
-                return Math.round(this.defense * (1 + this.tempBuffs.defP));
-            }
-
-            resetTempBuffs() {
-                this.tempBuffs = { strP: 0, spdP: 0, defP: 0, divine: false };
-                this.hp = Math.min(this.hp, this.maxHp);
-            }
-
-            update() {
-                this.animFrame++;
-                if (this.attackCooldown > 0) this.attackCooldown--;
-
-                // Transições de Estado
-                if (this.stateTimer > 0) {
-                    this.stateTimer--;
-                    if (this.stateTimer === 0 && this.state !== STATES.DEFEATED) {
-                        this.state = STATES.IDLE;
-                    }
-                }
-
-                // Retorno à posição inicial se IDLE
-                if (this.state === STATES.IDLE && Math.abs(this.x - this.homeX) > 5) {
-                    this.x += (this.homeX - this.x) * 0.1;
-                }
-            }
-
-            draw(ctx, particles) {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-
-                // Desenhar Aura Divina ou Presentes
-                if (this.tempBuffs.divine) {
-                    ctx.save();
-                    ctx.strokeStyle = 'rgba(255, 200, 0, 0.6)';
-                    ctx.lineWidth = 4;
-                    ctx.beginPath();
-                    ctx.arc(0, -40, 45 + Math.sin(this.animFrame * 0.2) * 5, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.restore();
-
-                    if (Math.random() < 0.4) {
-                        particles.push(new Particle(
-                            this.x + (Math.random() - 0.5) * 60,
-                            this.y - Math.random() * 80,
-                            '#ffc800', 0, -1, 3, 30
-                        ));
-                    }
-                }
-
-                // Efeito de Transparência na Esquiva (Shadow Dash)
-                if (this.state === STATES.DODGING) {
-                    ctx.globalAlpha = 0.4;
-                }
-
-                // Efeito de Flash ao Levar Dano
-                if (this.state === STATES.HIT) {
-                    ctx.strokeStyle = '#ff2a5f';
-                } else {
-                    ctx.strokeStyle = this.classSpec.color;
-                }
-
-                ctx.lineWidth = 4;
-                ctx.lineCap = 'round';
-
-                // Pose de Respirar/Idle
-                const breathe = Math.sin(this.animFrame * 0.1) * 3;
-
-                // 1. CABEÇA
-                ctx.beginPath();
-                ctx.arc(0, -70 + breathe, 12, 0, Math.PI * 2);
-                ctx.stroke();
-
-                // Ícone da Classe sobre a cabeça
-                ctx.font = '14px serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(this.classSpec.icon, 0, -90 + breathe);
-
-                // 2. TRONCO
-                ctx.beginPath();
-                ctx.moveTo(0, -58 + breathe);
-                ctx.lineTo(0, -25);
-                ctx.stroke();
-
-                // 3. PERNAS
-                if (this.state === STATES.DEFEATED) {
-                    // Caído no chão
-                    ctx.beginPath();
-                    ctx.moveTo(0, -25); ctx.lineTo(-20, 0);
-                    ctx.moveTo(0, -25); ctx.lineTo(20, 0);
-                    ctx.stroke();
-                } else if (this.state === STATES.MOVING) {
-                    const legAngle = Math.sin(this.animFrame * 0.3) * 15;
-                    ctx.beginPath();
-                    ctx.moveTo(0, -25); ctx.lineTo(-10 + legAngle, 0);
-                    ctx.moveTo(0, -25); ctx.lineTo(10 - legAngle, 0);
-                    ctx.stroke();
-                } else {
-                    // Base Normal
-                    ctx.beginPath();
-                    ctx.moveTo(0, -25); ctx.lineTo(-12 * this.facing, 0);
-                    ctx.moveTo(0, -25); ctx.lineTo(12 * this.facing, 0);
-                    ctx.stroke();
-                }
-
-                // 4. BRAÇOS / ARMAS
-                if (this.state === STATES.ATTACKING) {
-                    // Golpe Estendido
-                    ctx.beginPath();
-                    ctx.moveTo(0, -50 + breathe);
-                    ctx.lineTo(25 * this.facing, -45);
-                    ctx.stroke();
-
-                    // Arma Visual/Impacto
-                    if (this.data.classType === 'MAGO') {
-                        ctx.fillStyle = '#ff006e';
-                        ctx.beginPath();
-                        ctx.arc(35 * this.facing, -45, 8, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                } else if (this.state === STATES.DEFENDING) {
-                    // Postura de Defesa Guardada
-                    ctx.beginPath();
-                    ctx.moveTo(0, -50 + breathe);
-                    ctx.lineTo(10 * this.facing, -60);
-                    ctx.stroke();
-
-                    // Escudo Visual
-                    ctx.strokeStyle = '#ffc800';
-                    ctx.beginPath();
-                    ctx.arc(12 * this.facing, -50, 16, -Math.PI / 2, Math.PI / 2);
-                    ctx.stroke();
-                } else {
-                    // Braços Padrão
-                    ctx.beginPath();
-                    ctx.moveTo(0, -50 + breathe);
-                    ctx.lineTo(12 * this.facing, -35);
-                    ctx.stroke();
-                }
-
-                ctx.restore();
-            }
+      setTimeout(() => {
+        // Verificar se chegamos à grande final / Campeão
+        if (matchIndex <= 0) {
+          showChampionScreen(winner);
+        } else {
+          // Próxima rodada: Vencedor continua e enfrenta a próxima posição congelada
+          matchIndex--;
+          const nextOpponent = clonePlayer(top20Frozen[matchIndex]);
+          const nextSeedOpponent = matchIndex + 1;
+          
+          startMatch(winner, nextOpponent, activeMatch.seedA < nextSeedOpponent ? activeMatch.seedA : nextSeedOpponent - 1, nextSeedOpponent);
         }
-
-        /* ==========================================================================
-           4. MOTOR DE COMBATE REAL (COMBAT ENGINE V1.6)
-           ========================================================================== */
-        class CombatEngine {
-            constructor(canvas, logContainer) {
-                this.canvas = canvas;
-                this.ctx = canvas.getContext('2d');
-                this.logContainer = logContainer;
-
-                this.fighterA = null;
-                this.fighterB = null;
-                this.particles = [];
-                this.floatingTexts = [];
-
-                this.matchTimer = 60;
-                this.timerInterval = null;
-                this.isFrenzy = false;
-                this.isRunning = false;
-
-                // Hitstop (Pausa de impacto estilo Street Fighter)
-                this.hitstopFrames = 0;
-
-                this.resizeCanvas();
-                window.addEventListener('resize', () => this.resizeCanvas());
-            }
-
-            resizeCanvas() {
-                const rect = this.canvas.parentElement.getBoundingClientRect();
-                this.canvas.width = rect.width;
-                this.canvas.height = rect.height;
-            }
-
-            initMatch(playerA, playerB, onComplete) {
-                this.stop();
-
-                this.fighterA = new Fighter(playerA, true, this.canvas.width, this.canvas.height);
-                this.fighterB = new Fighter(playerB, false, this.canvas.width, this.canvas.height);
-                
-                this.particles = [];
-                this.floatingTexts = [];
-                this.matchTimer = 60;
-                this.isFrenzy = false;
-                this.onComplete = onComplete;
-                this.isRunning = true;
-
-                document.getElementById('frenzyBanner').classList.remove('show');
-                document.getElementById('matchTimer').classList.remove('frenzy');
-
-                this.log(`⚔️ INÍCIO DO CONFRONTO: ${playerA.name} VS ${playerB.name}!`);
-
-                // Timer da Partida
-                this.timerInterval = setInterval(() => {
-                    if (this.matchTimer > 0) {
-                        this.matchTimer--;
-                        document.getElementById('matchTimer').innerText = `${this.matchTimer}s`;
-
-                        if (this.matchTimer <= 10 && !this.isFrenzy) {
-                            this.triggerFrenzy();
-                        }
-                    } else {
-                        this.endMatchByTime();
-                    }
-                }, 1000);
-
-                this.loop();
-            }
-
-            triggerFrenzy() {
-                this.isFrenzy = true;
-                document.getElementById('frenzyBanner').classList.add('show');
-                document.getElementById('matchTimer').classList.add('frenzy');
-                this.log('🔥 FRENESI ATIVADO! Ataques acelerados e dano aumentado!', 'frenzy');
-            }
-
-            stop() {
-                this.isRunning = false;
-                if (this.timerInterval) clearInterval(this.timerInterval);
-            }
-
-            log(msg, type = '') {
-                const entry = document.createElement('div');
-                entry.className = `log-entry ${type}`;
-                entry.innerText = msg;
-                this.logContainer.appendChild(entry);
-                this.logContainer.scrollTop = this.logContainer.scrollHeight;
-            }
-
-            // LOOP PRINCIPAL DE RENDERIZAÇÃO E FÍSICA (60 FPS)
-            loop() {
-                if (!this.isRunning) return;
-
-                // Tratar Hitstop
-                if (this.hitstopFrames > 0) {
-                    this.hitstopFrames--;
-                    requestAnimationFrame(() => this.loop());
-                    return;
-                }
-
-                this.updatePhysics();
-                this.render();
-
-                requestAnimationFrame(() => this.loop());
-            }
-
-            updatePhysics() {
-                if (!this.fighterA || !this.fighterB) return;
-
-                this.fighterA.update();
-                this.fighterB.update();
-
-                // Atualizar Partículas e Textos
-                this.particles.forEach((p, index) => {
-                    p.update();
-                    if (p.life <= 0) this.particles.splice(index, 1);
-                });
-
-                this.floatingTexts.forEach((ft, index) => {
-                    ft.update();
-                    if (ft.life <= 0) this.floatingTexts.splice(index, 1);
-                });
-
-                // Lógica de Troca de Golpes e Distância
-                if (this.fighterA.hp > 0 && this.fighterB.hp > 0) {
-                    this.processCombatTurn(this.fighterA, this.fighterB);
-                    this.processCombatTurn(this.fighterB, this.fighterA);
-                }
-            }
-
-            processCombatTurn(attacker, defender) {
-                if (attacker.state !== STATES.IDLE || attacker.attackCooldown > 0) return;
-
-                // Calcular distância
-                const dist = Math.abs(attacker.x - defender.x);
-                const reqRange = attacker.classSpec.attackRange;
-
-                // Se longe, aproxima-se (Avançar sem atravessar)
-                if (dist > reqRange) {
-                    attacker.state = STATES.MOVING;
-                    const speed = (attacker.getEffectiveSpeed() * 0.25) * (this.isFrenzy ? 1.5 : 1.0);
-                    attacker.x += attacker.facing * speed;
-                    return;
-                }
-
-                // Executar Ataque
-                attacker.state = STATES.ATTACKING;
-                attacker.stateTimer = 18;
-                
-                // Cooldown baseado em Velocidade real
-                const spdFactor = Math.max(15, 55 - attacker.getEffectiveSpeed());
-                attacker.attackCooldown = Math.round(this.isFrenzy ? spdFactor * 0.5 : spdFactor);
-
-                // Lógica de Reação do Defensor
-                const dodgeRoll = Math.random();
-                const effDodge = defender.classSpec.dodgeChance + (defender.getEffectiveSpeed() * 0.005);
-
-                if (dodgeRoll < effDodge) {
-                    // ESQUIVA (MISS)
-                    defender.state = STATES.DODGING;
-                    defender.stateTimer = 15;
-                    defender.x -= defender.facing * 30; // Dash para trás
-                    this.floatingTexts.push(new FloatingText(defender.x, defender.y - 80, 'MISS!', '#00f0ff', 14));
-                    this.log(`💨 ${defender.data.name} esquivou do ataque de ${attacker.data.name}!`);
-                    return;
-                }
-
-                const blockRoll = Math.random();
-                const effBlock = defender.classSpec.blockChance;
-                let isBlocked = false;
-
-                if (blockRoll < effBlock) {
-                    // BLOQUEIO
-                    defender.state = STATES.DEFENDING;
-                    defender.stateTimer = 15;
-                    isBlocked = true;
-                    this.floatingTexts.push(new FloatingText(defender.x, defender.y - 80, '🛡️ BLOCK', '#ffc800', 14));
-                } else {
-                    defender.state = STATES.HIT;
-                    defender.stateTimer = 12;
-                    defender.x += attacker.facing * 8; // Recuo de Impacto
-                }
-
-                // CÁLCULO DE DANO REAL
-                const isCrit = Math.random() < attacker.classSpec.critChance;
-                const isHeavy = Math.random() < attacker.classSpec.heavyChance;
-
-                let baseDmg = attacker.getEffectiveStrength() * (isHeavy ? 1.6 : 1.0) * (isCrit ? 1.8 : 1.0);
-                if (this.isFrenzy) baseDmg *= 1.4;
-
-                // Redução de Defesa
-                let finalDmg = Math.max(3, Math.round(baseDmg - (defender.getEffectiveDefense() * 0.35)));
-                if (isBlocked) finalDmg = Math.max(1, Math.round(finalDmg * 0.3));
-
-                // Aplicação no HP
-                defender.hp = Math.max(0, defender.hp - finalDmg);
-
-                // Hitstop (Impact Pause)
-                this.hitstopFrames = isCrit ? 6 : 3;
-
-                // Efeitos Visuais de Impacto
-                this.createHitParticles(defender.x, defender.y - 45, isCrit ? '#ffc800' : '#ff2a5f');
-
-                // Floating Text
-                let textStr = `-${finalDmg}`;
-                let textColor = '#ffffff';
-                if (isCrit) { textStr = `💥 CRÍTICO! -${finalDmg}`; textColor = '#ffc800'; }
-                else if (isHeavy) { textStr = `🔨 PESADO -${finalDmg}`; textColor = '#ff5555'; }
-
-                this.floatingTexts.push(new FloatingText(defender.x, defender.y - 70, textStr, textColor, isCrit ? 20 : 15, isCrit));
-
-                // Registro no Log
-                if (isCrit) this.log(`💥 CRÍTICO! ${attacker.data.name} causou ${finalDmg} de dano em ${defender.data.name}!`, 'crit');
-                else if (isHeavy) this.log(`🔨 ATAQUE PESADO! ${attacker.data.name} acertou ${defender.data.name} (-${finalDmg} HP)!`, 'heavy');
-                else if (isBlocked) this.log(`🛡️ ${defender.data.name} bloqueou o ataque de ${attacker.data.name} (-${finalDmg} HP)`);
-                else this.log(`⚔️ ${attacker.data.name} atacou ${defender.data.name} (-${finalDmg} HP)`);
-
-                // Checagem de Morte
-                if (defender.hp <= 0) {
-                    defender.state = STATES.DEFEATED;
-                    this.stop();
-                    this.log(`☠️ ${defender.data.name} FOI DERROTADO!`);
-                    setTimeout(() => this.onComplete(attacker.data), 1500);
-                }
-            }
-
-            createHitParticles(x, y, color) {
-                for (let i = 0; i < 12; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = Math.random() * 4 + 2;
-                    this.particles.push(new Particle(
-                        x, y, color,
-                        Math.cos(angle) * speed,
-                        Math.sin(angle) * speed,
-                        Math.random() * 3 + 1, 20
-                    ));
-                }
-            }
-
-            endMatchByTime() {
-                this.stop();
-                this.log('⏱️ FIM DO TEMPO! Decidindo vencedor por maior HP...');
-                const winner = this.fighterA.hp >= this.fighterB.hp ? this.fighterA.data : this.fighterB.data;
-                this.log(`🏆 Vencedor por HP: ${winner.name}`);
-                setTimeout(() => this.onComplete(winner), 1500);
-            }
-
-            render() {
-                // Limpar Canvas
-                this.ctx.fillStyle = '#080a0f';
-                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-                // Grid do Chão
-                this.ctx.strokeStyle = '#151a23';
-                this.ctx.lineWidth = 1;
-                const groundY = this.canvas.height - 60;
-                
-                this.ctx.beginPath();
-                this.ctx.moveTo(0, groundY);
-                this.ctx.lineTo(this.canvas.width, groundY);
-                this.ctx.stroke();
-
-                // Desenhar Lutadores
-                if (this.fighterA) this.fighterA.draw(this.ctx, this.particles);
-                if (this.fighterB) this.fighterB.draw(this.ctx, this.particles);
-
-                // Desenhar Partículas e Textos Flutuantes
-                this.particles.forEach(p => p.draw(this.ctx));
-                this.floatingTexts.forEach(ft => ft.draw(this.ctx));
-
-                // Atualizar HUD
-                this.updateHUD();
-            }
-
-            updateHUD() {
-                if (!this.fighterA || !this.fighterB) return;
-
-                // Lutador A
-                document.getElementById('nameA').innerText = this.fighterA.data.name;
-                document.getElementById('avatarA').innerText = this.fighterA.classSpec.icon;
-                const pctA = Math.max(0, (this.fighterA.hp / this.fighterA.maxHp) * 100);
-                document.getElementById('hpBarA').style.width = `${pctA}%`;
-                document.getElementById('hpTextA').innerText = `${this.fighterA.hp} / ${this.fighterA.maxHp}`;
-
-                // Lutador B
-                document.getElementById('nameB').innerText = this.fighterB.data.name;
-                document.getElementById('avatarB').innerText = this.fighterB.classSpec.icon;
-                const pctB = Math.max(0, (this.fighterB.hp / this.fighterB.maxHp) * 100);
-                document.getElementById('hpBarB').style.width = `${pctB}%`;
-                document.getElementById('hpTextB').innerText = `${this.fighterB.hp} / ${this.fighterB.maxHp}`;
-            }
-
-            applyGift(targetIsA, giftAmount) {
-                const fighter = targetIsA ? this.fighterA : this.fighterB;
-                const tier = GIFT_TIERS[giftAmount];
-                if (!fighter || !tier) return;
-
-                // Cura Real em Tempo Real
-                fighter.hp = Math.min(fighter.maxHp + (tier.divine ? 500 : 0), fighter.hp + tier.hp);
-
-                // Bônus Temporários
-                fighter.tempBuffs.strP += tier.strP;
-                fighter.tempBuffs.spdP += tier.spdP;
-                fighter.tempBuffs.defP += tier.defP;
-
-                if (tier.divine) fighter.tempBuffs.divine = true;
-
-                // Efeito Flutuante Visual
-                this.floatingTexts.push(new FloatingText(
-                    fighter.x, fighter.y - 100,
-                    `🎁 +${giftAmount}! ${tier.label}`,
-                    '#00f0ff', 16, true
-                ));
-
-                this.log(`🎁 PRESENTE! @USUARIO enviou ${giftAmount} para ${fighter.data.name}! (${tier.label})`, 'gift');
-            }
-        }
-
-        /* ==========================================================================
-           5. SISTEMA DE TORNEIO E RANKING DA V1.5 (PRESERVAÇÃO INTEGRAL)
-           ========================================================================== */
-        class TournamentManager {
-            constructor() {
-                this.players = [];
-                this.top20 = [];
-                this.bracketQueue = [];
-                this.currentMatchIndex = 0;
-                this.currentWinner = null;
-                this.status = 'WAITING'; // WAITING, FROZEN, RUNNING
-
-                this.combatEngine = new CombatEngine(
-                    document.getElementById('combatCanvas'),
-                    document.getElementById('logMessages')
-                );
-            }
-
-            generatePlayers() {
-                const names = [
-                    'Slayer', 'Shadow', 'Valkyrie', 'Titan', 'Apex', 'Phoenix', 'Kratos', 
-                    'Storm', 'Vortex', 'Blaze', 'Cipher', 'Ragnar', 'Spectre', 'Zenith', 
-                    'Hyperion', 'Zero', 'Draco', 'Omega', 'Lethal', 'Frost', 'Nexus', 
-                    'Ares', 'Venom', 'Eclipse', 'Viper'
-                ];
-
-                const classKeys = Object.keys(CLASSES);
-
-                this.players = names.map((name, index) => {
-                    const classType = classKeys[Math.floor(Math.random() * classKeys.length)];
-                    return {
-                        id: index + 1,
-                        name: name,
-                        classType: classType,
-                        rank: 25 - index,
-                        points: (25 - index) * 100
-                    };
-                });
-
-                this.status = 'WAITING';
-                this.updateUI();
-            }
-
-            startTournament() {
-                if (this.players.length < 20) {
-                    alert('Gere os 25 jogadores primeiro!');
-                    return;
-                }
-
-                // 1. Congelar Top 20
-                this.top20 = [...this.players].sort((a, b) => b.points - a.points).slice(0, 20);
-                this.status = 'FROZEN';
-                this.updateUI();
-
-                // 2. Montar Fila Estrita do Torneio da V1.5 (#19 VS #20, depois Vencedor VS #18...)
-                this.bracketQueue = [];
-                
-                // Primeiro Confronto: #19 VS #20 (Índices 18 e 19)
-                let p19 = this.top20[18];
-                let p20 = this.top20[19];
-
-                this.runBracketStep(p19, p20, 17);
-            }
-
-            runBracketStep(fighterA, fighterB, nextRankIndex) {
-                this.status = 'RUNNING';
-                this.updateUI();
-
-                // Iniciar Luta na Engine Visual V1.6
-                this.combatEngine.initMatch(fighterA, fighterB, (winner) => {
-                    this.currentWinner = winner;
-
-                    if (nextRankIndex >= 0) {
-                        // Próximo Adversário da Fila (#18, #17 ... até #1)
-                        const nextOpponent = this.top20[nextRankIndex];
-                        this.combatEngine.log(`🏆 ${winner.name} venceu e avança para enfrentar o #${nextRankIndex + 1} (${nextOpponent.name})!`);
-                        
-                        setTimeout(() => {
-                            this.runBracketStep(winner, nextOpponent, nextRankIndex - 1);
-                        }, 2000);
-                    } else {
-                        // TORNEIO CONCLUÍDO - CAMPEÃO DA LWAR
-                        this.declareChampion(winner);
-                    }
-                });
-            }
-
-            declareChampion(champion) {
-                this.status = 'COMPLETED';
-                this.updateUI();
-                document.getElementById('championName').innerText = `${champion.name} (${CLASSES[champion.classType].name})`;
-                document.getElementById('championOverlay').classList.add('show');
-                this.combatEngine.log(`👑 CAMPEÃO DA LWAR ARENA: ${champion.name}!`, 'crit');
-            }
-
-            updateUI() {
-                const list = document.getElementById('rankingList');
-                list.innerHTML = '';
-
-                const displayList = this.top20.length > 0 ? this.top20 : this.players;
-
-                displayList.forEach((p, idx) => {
-                    const item = document.createElement('div');
-                    item.className = `ranking-item rank-${idx + 1}`;
-                    if (p === this.combatEngine.fighterA?.data || p === this.combatEngine.fighterB?.data) {
-                        item.classList.add('active-fighter');
-                    }
-
-                    item.innerHTML = `
-                        <div class="rank-num">#${idx + 1}</div>
-                        <div class="player-info">
-                            <div class="player-name">${p.name}</div>
-                            <div class="player-meta">
-                                <span class="class-badge">${CLASSES[p.classType].icon} ${CLASSES[p.classType].name}</span>
-                                <span>${p.points} pts</span>
-                            </div>
-                        </div>
-                    `;
-                    list.appendChild(item);
-                });
-
-                document.getElementById('rankCount').innerText = `${displayList.length}/20`;
-                
-                const badge = document.getElementById('tournamentStatusBadge');
-                if (this.status === 'WAITING') { badge.innerText = 'Aguardando'; badge.className = 'status-badge status-waiting'; }
-                else if (this.status === 'FROZEN') { badge.innerText = 'Congelado'; badge.className = 'status-badge status-frozen'; }
-                else if (this.status === 'RUNNING') { badge.innerText = 'Em Combate'; badge.className = 'status-badge status-active'; }
-            }
-        }
-
-        /* ==========================================================================
-           6. INICIALIZAÇÃO E CONTROLES DE INTERFACE
-           ========================================================================== */
-        const tournament = new TournamentManager();
-        let selectedTargetA = true;
-
-        document.getElementById('btnGen25').addEventListener('click', () => {
-            tournament.generatePlayers();
+      }, 2500);
+    }
+
+    function markPlayerEliminated(handle) {
+      const idx = top20Frozen.findIndex(p => p.handle === handle);
+      if (idx !== -1) {
+        top20Frozen[idx].eliminated = true;
+      }
+      renderTop20Sidebar();
+    }
+
+    /* --------------------------------------------------------------------------
+       4. SISTEMA DE PRESENTES & BUFFS (V1.6 PRESERVADO E REFORMULADO VISUALMENTE)
+       -------------------------------------------------------------------------- */
+    function handleSendGift(side, amount) {
+      if (!activeMatch || activeMatch.over) return;
+      const target = side === 'left' ? activeMatch.fighterA : activeMatch.fighterB;
+
+      // Cálculo dos Bônus da V1.6
+      const atkInc = Math.min(50, Math.floor(amount * 0.08)); // +8% por exemplo
+      const spdInc = Math.min(40, Math.floor(amount * 0.05));
+      const hpHeal = Math.floor(amount * 1.5);
+
+      target.giftBuffs.atkPct += atkInc;
+      target.giftBuffs.spdPct += spdInc;
+      
+      // Aplicar Atk & Spd
+      target.atk = Math.floor(target.baseAtk * (1 + target.giftBuffs.atkPct / 100));
+      target.spd = target.baseSpd * (1 + target.giftBuffs.spdPct / 100);
+      
+      // Cura / Aumento de HP
+      target.hp = Math.min(target.maxHp + hpHeal, target.hp + hpHeal);
+      target.maxHp = Math.max(target.maxHp, target.hp);
+
+      updateBuffDisplay(side);
+
+      // Exibir Anúncio visual na Arena
+      showGiftAnnouncement(target.handle, amount, atkInc, spdInc, hpHeal);
+
+      // Partículas de Magia no Lutador
+      for (let i = 0; i < 20; i++) {
+        particles.push({
+          x: target.x + (Math.random() - 0.5) * 40,
+          y: target.y - (Math.random() * 60),
+          vx: (Math.random() - 0.5) * 3,
+          vy: -Math.random() * 4 - 1,
+          size: Math.random() * 5 + 3,
+          color: '#9d4edd',
+          life: 30
         });
+      }
+    }
 
-        document.getElementById('btnStartTournament').addEventListener('click', () => {
-            tournament.startTournament();
-        });
+    function updateBuffDisplay(side) {
+      if (!activeMatch) return;
+      const target = side === 'left' ? activeMatch.fighterA : activeMatch.fighterB;
+      const badgeElem = document.getElementById(side === 'left' ? 'leftBuffBadge' : 'rightBuffBadge');
+      const totalBuff = target.giftBuffs.atkPct + target.giftBuffs.spdPct;
+      badgeElem.innerText = `BUFFS: +${totalBuff}%`;
+    }
 
-        document.getElementById('btnReset').addEventListener('click', () => {
-            location.reload();
-        });
+    function showGiftAnnouncement(handle, amount, atk, spd, hp) {
+      const banner = document.getElementById('giftAnnouncement');
+      document.getElementById('giftAnnounceTitle').innerText = `🎁 DOADOR enviou ${amount.toLocaleString()} moedas para ${handle}!`;
+      document.getElementById('giftAnnounceBuffs').innerHTML = `
+        <span>⚔️ FORÇA +${atk}%</span>
+        <span>⚡ VELOCIDADE +${spd}%</span>
+        <span>❤️ HP +${hp}</span>
+      `;
+      
+      banner.classList.add('show');
+      setTimeout(() => {
+        banner.classList.remove('show');
+      }, 2800);
+    }
 
-        document.getElementById('targetABtn').addEventListener('click', () => {
-            selectedTargetA = true;
-            document.getElementById('targetABtn').classList.add('selected');
-            document.getElementById('targetBBtn').classList.remove('selected');
-        });
+    /* --------------------------------------------------------------------------
+       5. RENDERIZAÇÃO DO TOP 20 SIDEBAR
+       -------------------------------------------------------------------------- */
+    function renderTop20Sidebar() {
+      const container = document.getElementById('top20Container');
+      container.innerHTML = '';
 
-        document.getElementById('targetBBtn').addEventListener('click', () => {
-            selectedTargetA = false;
-            document.getElementById('targetBBtn').classList.add('selected');
-            document.getElementById('targetABtn').classList.remove('selected');
-        });
+      top20Frozen.forEach((p, idx) => {
+        const rank = idx + 1;
+        const row = document.createElement('div');
+        row.className = 'player-row';
 
-        function sendGift(amount) {
-            tournament.combatEngine.applyGift(selectedTargetA, amount);
+        if (rank === 1) row.classList.add('top-1');
+        else if (rank === 2) row.classList.add('top-2');
+        else if (rank === 3) row.classList.add('top-3');
+
+        if (p.eliminated) row.classList.add('eliminated');
+
+        // Destacar lutadores em combate ativo
+        if (activeMatch && (p.handle === activeMatch.fighterA.handle || p.handle === activeMatch.fighterB.handle)) {
+          row.classList.add('in-battle');
         }
 
-        function closeChampionOverlay() {
-            document.getElementById('championOverlay').classList.remove('show');
-        }
+        let medal = `#${rank}`;
+        if (rank === 1) medal = '🥇';
+        else if (rank === 2) medal = '🥈';
+        else if (rank === 3) medal = '🥉';
 
-        // Gerar jogadores automaticamente ao iniciar para conveniência
-        window.onload = () => {
-            tournament.generatePlayers();
-        };
-    </script>
+        row.innerHTML = `
+          <div class="player-left">
+            <span class="rank-num">${medal}</span>
+            <span class="player-name">${p.handle}</span>
+          </div>
+          <span class="player-points">${p.points.toLocaleString()}</span>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    /* --------------------------------------------------------------------------
+       6. ENGINE 2D DA ARENA MEDIEVAL (STICKMAN + INTERFACE DE COMBATE)
+       -------------------------------------------------------------------------- */
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // Loop de Animação e Lógica de Batalha (60 FPS)
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Desenhar Fundo Medieval (Palco de pedra, tochas, atmosfera)
+      drawMedievalEnvironment();
+
+      // 2. Processar Lógica de Ataque Automático
+      if (activeMatch && !activeMatch.over) {
+        updateCombatLogic();
+      }
+
+      // 3. Desenhar Lutadores (se houver luta ativa)
+      if (activeMatch) {
+        drawFighter(activeMatch.fighterA, 'left');
+        drawFighter(activeMatch.fighterB, 'right');
+      }
+
+      // 4. Desenhar Partículas & Textos Flutuantes (Dano, Efeitos)
+      updateAndDrawParticles();
+      updateAndDrawFloatingTexts();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function drawMedievalEnvironment() {
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Fundo em Gradiente Escuro Fantasia
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0, '#07090e');
+      bgGrad.addColorStop(0.7, '#111622');
+      bgGrad.addColorStop(1, '#080a0f');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Plataforma de Pedra
+      const floorY = h * 0.72;
+      const floorGrad = ctx.createLinearGradient(0, floorY, 0, h);
+      floorGrad.addColorStop(0, '#252e3f');
+      floorGrad.addColorStop(0.2, '#181e2b');
+      floorGrad.addColorStop(1, '#0d1118');
+      
+      ctx.fillStyle = floorGrad;
+      ctx.fillRect(0, floorY, w, h - floorY);
+
+      // Borda superior da plataforma (brilho metálico)
+      ctx.strokeStyle = '#3d4b66';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, floorY);
+      ctx.lineTo(w, floorY);
+      ctx.stroke();
+
+      // Detalhes de blocos de pedra no chão
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w; x += 60) {
+        ctx.beginPath();
+        ctx.moveTo(x, floorY);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+
+      // Tochas de Fogo nas Laterais
+      drawTorch(w * 0.08, floorY - 60);
+      drawTorch(w * 0.92, floorY - 60);
+    }
+
+    function drawTorch(x, y) {
+      // Suporte de ferro
+      ctx.fillStyle = '#151922';
+      ctx.fillRect(x - 4, y, 8, 40);
+      
+      // Chama da Tocha (Efeito Pulsante)
+      const time = Date.now() * 0.008;
+      const flameSize = 12 + Math.sin(time * 3) * 3;
+
+      const flameGrad = ctx.createRadialGradient(x, y - 5, 2, x, y - 5, flameSize);
+      flameGrad.addColorStop(0, '#ffffff');
+      flameGrad.addColorStop(0.3, '#ffd700');
+      flameGrad.addColorStop(0.7, '#ff4500');
+      flameGrad.addColorStop(1, 'transparent');
+
+      ctx.fillStyle = flameGrad;
+      ctx.beginPath();
+      ctx.arc(x, y - 5, flameSize, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Partículas sutis de fuligem/fogo da tocha
+      if (Math.random() < 0.3) {
+        particles.push({
+          x: x + (Math.random() - 0.5) * 8,
+          y: y - 10,
+          vx: (Math.random() - 0.5) * 1,
+          vy: -Math.random() * 2 - 0.5,
+          size: Math.random() * 3 + 1,
+          color: '#ff7b00',
+          life: 25
+        });
+      }
+    }
+
+    /* Lógica de Ataque Automático entre os Lutadores */
+    function updateCombatLogic() {
+      const fA = activeMatch.fighterA;
+      const fB = activeMatch.fighterB;
+
+      const speedMultiplier = isFrenzy ? 1.8 : 1.0;
+
+      activeMatch.cooldownA += fA.spd * speedMultiplier;
+      activeMatch.cooldownB += fB.spd * speedMultiplier;
+
+      // Ataque do Lutador A
+      if (activeMatch.cooldownA >= 100) {
+        executeAttack(fA, fB);
+        activeMatch.cooldownA = 0;
+      }
+
+      // Ataque do Lutador B
+      if (activeMatch.cooldownB >= 100) {
+        executeAttack(fB, fA);
+        activeMatch.cooldownB = 0;
+      }
+    }
+
+    function executeAttack(attacker, defender) {
+      // Animação de Avanço
+      attacker.attackAnim = 12;
+
+      // Cálculo de Dano Preservado da V1.6
+      const damageMultiplier = isFrenzy ? 1.5 : 1.0;
+      const isCrit = Math.random() < 0.2;
+      let rawDamage = Math.max(6, Math.floor(attacker.atk * (0.85 + Math.random() * 0.3)));
+      
+      if (isCrit) rawDamage = Math.floor(rawDamage * 1.7);
+      rawDamage = Math.floor(rawDamage * damageMultiplier);
+
+      defender.hp = Math.max(0, defender.hp - rawDamage);
+      defender.hitCooldown = 8; // Efeito de recuo/piscar vermelho
+
+      // Spawn de Número de Dano Flutuante na Arena
+      const damageColor = isCrit ? "#ffd700" : "#e63946";
+      const damageText = isCrit ? `CRÍTICO! -${rawDamage}` : `-${rawDamage}`;
+      spawnFloatingText(defender.x, defender.y - 70, damageText, damageColor, isCrit ? 24 : 18);
+
+      // Partículas de Impacto
+      for (let i = 0; i < 8; i++) {
+        particles.push({
+          x: defender.x,
+          y: defender.y - 30,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          size: Math.random() * 4 + 2,
+          color: isCrit ? '#ffd700' : '#e63946',
+          life: 20
+        });
+      }
+
+      // Verificar Derrota
+      if (defender.hp <= 0) {
+        handleMatchVictory(attacker, defender);
+      }
+    }
+
+    /* DESENHAR PERSONAGEM STICKMAN + OVERHEAD UI (HP, NOME, CLASSE) */
+    function drawFighter(f, side) {
+      const baseX = side === 'left' ? canvas.width * 0.28 : canvas.width * 0.72;
+      const baseY = canvas.height * 0.70;
+
+      // Animação de ataque (Avanço)
+      let currentX = baseX;
+      if (f.attackAnim > 0) {
+        const offset = (12 - f.attackAnim) * 4;
+        currentX += side === 'left' ? offset : -offset;
+        f.attackAnim--;
+      }
+
+      // Efeito ao receber dano (Recuo)
+      if (f.hitCooldown > 0) {
+        currentX += side === 'left' ? -6 : 6;
+        f.hitCooldown--;
+      }
+
+      f.x = currentX;
+      f.y = baseY;
+
+      ctx.save();
+
+      // Sombra aos pés
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.beginPath();
+      ctx.ellipse(currentX, baseY, 22, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Corpo Stickman Medieval
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = f.hitCooldown > 0 ? '#e63946' : '#ffffff';
+      ctx.lineCap = 'round';
+
+      // Cabeça
+      ctx.beginPath();
+      ctx.arc(currentX, baseY - 50, 10, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Tronco
+      ctx.beginPath();
+      ctx.moveTo(currentX, baseY - 40);
+      ctx.lineTo(currentX, baseY - 18);
+      ctx.stroke();
+
+      // Pernas
+      ctx.beginPath();
+      ctx.moveTo(currentX, baseY - 18);
+      ctx.lineTo(currentX - 10, baseY);
+      ctx.moveTo(currentX, baseY - 18);
+      ctx.lineTo(currentX + 10, baseY);
+      ctx.stroke();
+
+      // Braços / Armas baseadas na Classe
+      ctx.beginPath();
+      ctx.moveTo(currentX, baseY - 35);
+      const armDirection = side === 'left' ? 1 : -1;
+      ctx.lineTo(currentX + (12 * armDirection), baseY - 25);
+      ctx.stroke();
+
+      // Desenhar Arma da Classe
+      drawWeapon(currentX + (12 * armDirection), baseY - 25, f.weapon, armDirection);
+
+      ctx.restore();
+
+      // OVERHEAD UI: Nome (@Handle), Classe, Barra de HP
+      drawOverheadUI(f, currentX, baseY - 70);
+    }
+
+    function drawWeapon(x, y, type, dir) {
+      ctx.save();
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 3;
+
+      if (type === 'sword') {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + (15 * dir), y - 15);
+        ctx.stroke();
+      } else if (type === 'staff') {
+        ctx.strokeStyle = '#9d4edd';
+        ctx.beginPath();
+        ctx.moveTo(x, y + 10);
+        ctx.lineTo(x + (8 * dir), y - 20);
+        ctx.stroke();
+        // Orbe mágica na ponta
+        ctx.fillStyle = '#9d4edd';
+        ctx.beginPath();
+        ctx.arc(x + (8 * dir), y - 22, 4, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (type === 'axe') {
+        ctx.strokeStyle = '#c0c0c0';
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + (12 * dir), y - 14);
+        ctx.stroke();
+      } else {
+        // Padrão Adaga / Arco
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + (10 * dir), y - 10);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawOverheadUI(f, x, y) {
+      ctx.save();
+      ctx.textAlign = 'center';
+
+      // 1. Tag de Nome (@Handle)
+      ctx.font = 'bold 12px "Segoe UI", sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 4;
+      ctx.fillText(f.handle, x, y - 22);
+
+      // 2. Ícone + Nome da Classe
+      ctx.font = '10px "Segoe UI", sans-serif';
+      ctx.fillStyle = '#8896ab';
+      ctx.fillText(`${f.classIcon} ${f.className}`, x, y - 10);
+
+      // 3. Barra de HP Proporcional e Numérica (ex: 120/120)
+      const barW = 80;
+      const barH = 8;
+      const barX = x - barW / 2;
+      const barY = y;
+
+      // Fundo da barra
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+
+      // Preenchimento do HP
+      const hpPct = Math.max(0, f.hp / f.maxHp);
+      let hpColor = '#2ec4b6'; // Verde HP cheio
+      if (hpPct < 0.3) hpColor = '#e63946'; // Vermelho perigo
+      else if (hpPct < 0.6) hpColor = '#ff7b00'; // Laranja
+
+      ctx.fillStyle = hpColor;
+      ctx.fillRect(barX, barY, barW * hpPct, barH);
+
+      // Texto de HP Numérico
+      ctx.font = 'bold 9px monospace';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(`${f.hp}/${f.maxHp}`, x, barY + 7);
+
+      ctx.restore();
+    }
+
+    /* SISTEMA DE PARTÍCULAS E DANO FLUTUANTE */
+    function spawnFloatingText(x, y, text, color, size) {
+      floatingTexts.push({
+        x: x,
+        y: y,
+        text: text,
+        color: color,
+        size: size,
+        alpha: 1.0,
+        life: 40
+      });
+    }
+
+    function updateAndDrawFloatingTexts() {
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y -= 0.8;
+        ft.alpha -= 1 / ft.life;
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, ft.alpha);
+        ctx.font = `900 ${ft.size}px "Segoe UI", sans-serif`;
+        ctx.fillStyle = ft.color;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 6;
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+
+        if (ft.alpha <= 0) {
+          floatingTexts.splice(i, 1);
+        }
+      }
+    }
+
+    function updateAndDrawParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+
+        ctx.save();
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       7. TELA DE CAMPEÃO (#1 DO TORNEIO)
+       -------------------------------------------------------------------------- */
+    function showChampionScreen(winner) {
+      document.getElementById('champHandle').innerText = winner.handle;
+      document.getElementById('champClass').innerText = `${winner.classIcon} ${winner.className.toUpperCase()} SUPREMO`;
+      document.getElementById('championModal').classList.add('active');
+
+      // Chuva de partículas douradas
+      for (let i = 0; i < 60; i++) {
+        particles.push({
+          x: canvas.width * Math.random(),
+          y: canvas.height * Math.random(),
+          vx: (Math.random() - 0.5) * 2,
+          vy: Math.random() * 3 + 1,
+          size: Math.random() * 6 + 2,
+          color: '#ffd700',
+          life: 120
+        });
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       8. FUNÇÕES DE SIMULAÇÃO & TESTES LIVE
+       -------------------------------------------------------------------------- */
+    function triggerFrenzyTest() {
+      matchTimer = 10;
+      updateTimerDisplay();
+    }
+
+    function simRandomGift() {
+      if (!activeMatch) return;
+      const sides = ['left', 'right'];
+      const amounts = [1, 100, 500, 1000, 5000];
+      const side = sides[Math.floor(Math.random() * sides.length)];
+      const amt = amounts[Math.floor(Math.random() * amounts.length)];
+      handleSendGift(side, amt);
+    }
+
+    function fastForwardMatch() {
+      if (!activeMatch || activeMatch.over) return;
+      activeMatch.fighterB.hp = 0;
+      handleMatchVictory(activeMatch.fighterA, activeMatch.fighterB);
+    }
+
+    /* --------------------------------------------------------------------------
+       INICIALIZAÇÃO DO JOGO
+       -------------------------------------------------------------------------- */
+    window.onload = () => {
+      resizeCanvas();
+      initTournament25();
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
 </body>
 </html>
-
